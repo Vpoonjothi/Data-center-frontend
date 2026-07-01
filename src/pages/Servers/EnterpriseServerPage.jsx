@@ -1,0 +1,574 @@
+import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { ENTERPRISE_PRICING, ENTERPRISE_OFFERS } from '../../constants/pricingData';
+import InfrastructureSection from '../../components/shared/InfrastructureSection';
+import ContactCTASection from '../../components/sections/ContactCTASection';
+import { AuthContext } from '../../context/AuthContext';
+import { LoginRequiredModal, OrderSummaryModal, SuccessModal } from '../../components/calculator/OrderModals';
+import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
+import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
+
+const EnterpriseServerPage = () => {
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+
+  // Configuration State
+  const [vCPU, setVCPU] = useState(ENTERPRISE_PRICING.vCPU.min);
+  const [ram, setRam] = useState(ENTERPRISE_PRICING.RAM.min);
+  const [ssd, setSsd] = useState(ENTERPRISE_PRICING.SSD.min);
+  const [bandwidth, setBandwidth] = useState(ENTERPRISE_PRICING.Bandwidth[0]);
+  const [os, setOs] = useState(ENTERPRISE_PRICING.OS[0]);
+  const [backup, setBackup] = useState(false);
+  const [isOsDropdownOpen, setIsOsDropdownOpen] = useState(false);
+
+  // Modals State
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdQuote, setCreatedQuote] = useState(null);
+
+  // Billing Duration State
+  const [billingDuration, setBillingDuration] = useState({
+    duration_type: 'Monthly',
+    duration_value: 1,
+    duration_unit: 'Months',
+    durationMultiplier: 1
+  });
+
+  // Calculate Base Components (Derived State)
+  const vCPUPrice = vCPU * ENTERPRISE_PRICING.vCPU.price;
+  const ramPrice = ram * ENTERPRISE_PRICING.RAM.price;
+  const ssdPrice = (ssd / ENTERPRISE_PRICING.SSD.baseIncrement) * ENTERPRISE_PRICING.SSD.price;
+  const bandwidthPrice = bandwidth.price;
+  const osPrice = os.price;
+  const backupPrice = backup ? ENTERPRISE_PRICING.Backup.price : 0;
+
+  const subtotal = vCPUPrice + ramPrice + ssdPrice + bandwidthPrice + osPrice + backupPrice;
+
+  // Determine Applicable Offer
+  let appliedOffer = null;
+  if (vCPU >= 16 && ram >= 32) {
+    appliedOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Enterprise Offer');
+  } else if (vCPU >= 8 && ram >= 16) {
+    appliedOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Business Offer');
+  } else if (vCPU >= 4 && ram >= 8) {
+    appliedOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Startup Offer');
+  }
+
+  // Determine Next Offer for Upsell
+  let nextOffer = null;
+  if (!appliedOffer) {
+    nextOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Startup Offer');
+  } else if (appliedOffer.name === 'Startup Offer') {
+    nextOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Business Offer');
+  } else if (appliedOffer.name === 'Business Offer') {
+    nextOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Enterprise Offer');
+  }
+
+  const getMissingText = (offer) => {
+    if (!offer) return '';
+    const missingCpu = Math.max(0, offer.min_vcpu - vCPU);
+    const missingRam = Math.max(0, offer.min_ram - ram);
+    if (missingCpu > 0 && missingRam > 0) return `Increase RAM by ${missingRam} GB and CPU by ${missingCpu} vCPU`;
+    if (missingCpu > 0) return `Increase CPU by ${missingCpu} vCPU`;
+    if (missingRam > 0) return `Increase RAM by ${missingRam} GB`;
+    return '';
+  };
+
+  // Calculate Discounts
+  const discount = appliedOffer ? subtotal * (appliedOffer.discount / 100) : 0;
+  const monthlyPrice = subtotal - discount;
+
+  // Duration Calculations
+  const { contractValue: durationSubtotal, gstAmount, totalPayable: grandTotal } = calculateSubscriptionPricing(
+    monthlyPrice,
+    billingDuration.duration_value,
+    billingDuration.duration_unit
+  );
+
+  const handleAction = () => {
+    if (!user) {
+      setShowLoginModal(true);
+    } else {
+      setShowSummaryModal(true);
+    }
+  };
+
+  const handleSuccess = (quoteData) => {
+    setShowSummaryModal(false);
+    setCreatedQuote(quoteData);
+    setShowSuccessModal(true);
+  };
+
+  // Stepper Handlers
+  const handleStepper = (type, action) => {
+    const rules = ENTERPRISE_PRICING[type];
+    if (type === 'vCPU') {
+      const newValue = action === 'add' ? vCPU + rules.step : vCPU - rules.step;
+      if (newValue >= rules.min && newValue <= rules.max) setVCPU(newValue);
+    } else if (type === 'RAM') {
+      const newValue = action === 'add' ? ram + rules.step : ram - rules.step;
+      if (newValue >= rules.min && newValue <= rules.max) setRam(newValue);
+    } else if (type === 'SSD') {
+      const newValue = action === 'add' ? ssd + rules.step : ssd - rules.step;
+      if (newValue >= rules.min && newValue <= rules.max) setSsd(newValue);
+    }
+  };
+
+  const renderControlGroup = ({ label, value, unit, type }) => {
+    const rules = ENTERPRISE_PRICING[type];
+    return (
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-white font-medium text-lg">{label}</h3>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleStepper(type, 'sub')}
+              disabled={value <= rules.min}
+              className="w-8 h-8 rounded-full bg-[#1e293b] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              -
+            </button>
+            <div className="w-24 text-center font-bold text-xl text-secondary">
+              {value} <span className="text-sm font-normal text-gray-500">{unit}</span>
+            </div>
+            <button
+              onClick={() => handleStepper(type, 'add')}
+              disabled={value >= rules.max}
+              className="w-8 h-8 rounded-full bg-[#1e293b] border border-gray-700 flex items-center justify-center text-gray-400 hover:text-white hover:border-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        
+        {/* Slider */}
+        <div className="relative w-full h-2 bg-gray-800 rounded-full">
+          <div
+            className="absolute h-full bg-secondary rounded-full pointer-events-none"
+            style={{ width: `${((value - rules.min) / (rules.max - rules.min)) * 100}%` }}
+          ></div>
+          <input
+            type="range"
+            min={rules.min}
+            max={rules.max}
+            step={rules.step}
+            value={value}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (type === 'vCPU') setVCPU(val);
+              if (type === 'RAM') setRam(val);
+              if (type === 'SSD') setSsd(val);
+            }}
+            className="absolute w-full h-full opacity-0 cursor-pointer"
+          />
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 mt-2">
+          <span>{rules.min} {unit}</span>
+          <span>{rules.max} {unit}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const currentConfig = {
+    isAI: false,
+    vCPU,
+    ram,
+    ssd,
+    bandwidth: bandwidth.label,
+    os: os.label,
+    backup,
+    discountName: appliedOffer ? `${appliedOffer.name} (-${appliedOffer.discount}%)` : null,
+    monthlyPrice,
+    durationSubtotal,
+    gstAmount,
+    grandTotal,
+    ...billingDuration
+  };
+
+  return (
+    <div className="min-h-screen bg-[#020817] pt-20">
+      {/* Hero Section */}
+      <section className="relative py-20 overflow-hidden border-b border-gray-800">
+        <div className="absolute inset-0 bg-emerald-900/10 blur-[100px] pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-4xl md:text-6xl font-bold text-white mb-6"
+          >
+            Enterprise Dedicated <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary to-secondary">Servers</span>
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-xl text-gray-400 max-w-3xl mx-auto"
+          >
+            Build your own enterprise infrastructure with configurable CPU, RAM, Storage, and bandwidth to perfectly match your workload.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Main Configurator Section */}
+      <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Column: Configuration Controls */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            <div className="bg-[#0a1128]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-6 sm:p-10 shadow-2xl">
+              <h2 className="text-2xl font-bold text-white mb-8 border-b border-gray-800 pb-4">Hardware Configuration</h2>
+              {renderControlGroup({ label: "Processor (vCPU)", value: vCPU, unit: "vCPU", type: "vCPU" })}
+              {renderControlGroup({ label: "Memory (RAM)", value: ram, unit: "GB", type: "RAM" })}
+              {renderControlGroup({ label: "Storage (SSD)", value: ssd, unit: "GB", type: "SSD" })}
+            </div>
+
+            <div className="bg-[#0a1128] border border-gray-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative" style={{ zIndex: 100 }}>
+              <h2 className="text-2xl font-bold text-white mb-6 border-b border-gray-800 pb-4">Software & Network</h2>
+              
+              <div className="space-y-6">
+                
+                {/* OS Selection */}
+                <div className="relative z-[60]">
+                  <label className="block text-gray-400 font-medium text-sm mb-2">Operating System</label>
+                  
+                  {/* Custom Dropdown Trigger */}
+                  <div 
+                    className="w-full bg-[#1e293b] border border-gray-700 hover:border-secondary text-white rounded-lg px-4 py-3 cursor-pointer flex justify-between items-center transition-colors text-sm"
+                    onClick={() => setIsOsDropdownOpen(!isOsDropdownOpen)}
+                  >
+                    <span className="font-medium">{os.label} <span className={os.price === 0 ? 'text-emerald-400' : 'text-blue-400'}>{os.price > 0 ? `(+₹${os.price}/mo)` : '(Free)'}</span></span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOsDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+
+                  {/* Custom Dropdown Menu */}
+                  <AnimatePresence>
+                    {isOsDropdownOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute z-50 w-full mt-2 bg-[#0f172a] border border-gray-700 rounded-lg shadow-2xl max-h-80 overflow-y-auto overflow-x-hidden custom-scrollbar"
+                      >
+                        {/* Linux Group */}
+                        <div className="px-2 pt-3 pb-2">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 px-2 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 22s5-2 5-6c0-3-1-4-3-4-2 0-3 1-3 1s-1-1-3-1c-2 0-3 1-3 4 0 4 5 6 5 6zm-1.5-12c.5 0 1 .5 1 1 0-.5.5-1 1-1 .5 0 1 .5 1 1.5 0 2-2 2-2 4 0-2-2-2-2-4 0-1 .5-1.5 1-1.5zm.5-4c-1.5 0-3 .5-3 2.5v1h1v-1c0-1.5 1-2 2-2h1c1 0 2 .5 2 2v1h1v-1c0-2-1.5-2.5-3-2.5h-1z"/>
+                            </svg>
+                            Linux (Free License)
+                          </div>
+                          {ENTERPRISE_PRICING.OS.filter(o => o.price === 0).map(opt => (
+                            <div 
+                              key={opt.label}
+                              onClick={() => { setOs(opt); setIsOsDropdownOpen(false); }}
+                              className={`px-3 py-2 rounded-md cursor-pointer flex justify-between items-center transition-colors text-sm ${os.label === opt.label ? 'bg-secondary/20 text-secondary' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+                            >
+                              <span className="font-medium">{opt.label}</span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-400/10">FREE</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="w-full h-px bg-gray-800"></div>
+
+                        {/* Windows Group */}
+                        <div className="px-2 pt-2 pb-3">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 px-2 flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-[#00a4ef]" viewBox="0 0 88 88" fill="currentColor">
+                              <path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.027 34.453-35.67-4.904-.027-29.773zm4.326-39.08l47.968-6.851v41.341l-47.968.39zm47.968 41.527v41.405l-47.968-6.861-.016-34.82z"/>
+                            </svg>
+                            Windows Server (Licensed)
+                          </div>
+                          {ENTERPRISE_PRICING.OS.filter(o => o.price > 0).map(opt => (
+                            <div 
+                              key={opt.label}
+                              onClick={() => { setOs(opt); setIsOsDropdownOpen(false); }}
+                              className={`px-3 py-2 rounded-md cursor-pointer flex justify-between items-center transition-colors text-sm ${os.label === opt.label ? 'bg-secondary/20 text-secondary' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+                            >
+                              <span className="font-medium">{opt.label}</span>
+                              <span className="text-xs text-blue-400 font-semibold">+₹{opt.price}/mo</span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Windows Specific Note */}
+                  <AnimatePresence>
+                    {os.price > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-3 p-3 bg-blue-900/10 border border-blue-800/30 rounded-lg flex items-start gap-2.5">
+                          <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs text-blue-200/80 leading-relaxed">
+                            <strong className="text-blue-300 font-semibold">Note:</strong> <span className="text-white">Windows activation charges and installation fees are additional</span> and will be included in your final quotation.
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Bandwidth Selection */}
+                <div>
+                  <label className="block text-gray-400 font-medium text-sm mb-2">Bandwidth</label>
+                  <select 
+                    value={bandwidth.label}
+                    onChange={(e) => setBandwidth(ENTERPRISE_PRICING.Bandwidth.find(b => b.label === e.target.value))}
+                    className="w-full bg-[#1e293b] border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-secondary transition-colors appearance-none text-sm font-medium"
+                  >
+                    {ENTERPRISE_PRICING.Bandwidth.map(opt => (
+                      <option key={opt.label} value={opt.label}>
+                        {opt.label} (+₹{opt.price}/mo)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Backup Checkbox */}
+                <div className="pt-5 border-t border-gray-800 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-white font-medium text-sm">Daily Automated Backup</h3>
+                    <p className="text-xs text-gray-500 mt-1">Secure your data with daily snapshot backups.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-secondary font-medium text-sm">+₹{ENTERPRISE_PRICING.Backup.price}/mo</span>
+                    <button
+                      onClick={() => setBackup(!backup)}
+                      className={`w-11 h-6 rounded-full transition-colors relative ${backup ? 'bg-accent' : 'bg-gray-700'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${backup ? 'left-6' : 'left-1'}`} />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Promotional Offers Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative" style={{ zIndex: 10 }}>
+              {ENTERPRISE_OFFERS.map(offer => {
+                const isApplied = appliedOffer?.name === offer.name;
+                const isMet = vCPU >= offer.min_vcpu && ram >= offer.min_ram;
+                
+                if (isApplied) {
+                  return (
+                    <div key={offer.name} className="p-5 rounded-2xl border bg-emerald-900/20 border-secondary shadow-[0_0_20px_rgba(16,185,129,0.2)] relative overflow-hidden">
+                      <div className="absolute top-0 right-0 bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg">
+                        ACTIVE
+                      </div>
+                      <div className="flex items-center gap-2 mb-2 text-secondary">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <span className="text-xs font-bold uppercase tracking-wider">{offer.name}</span>
+                      </div>
+                      <div className="text-3xl font-bold text-white mb-4">{offer.discount}% OFF</div>
+                      <div className="text-xs text-emerald-200/70 mb-4 border-b border-secondary/20 pb-3 space-y-1">
+                        <div className="font-semibold text-secondary">Minimum Requirements:</div>
+                        <div>{offer.min_vcpu} vCPU</div>
+                        <div>{offer.min_ram} GB RAM</div>
+                      </div>
+                      <div className="text-sm font-bold text-secondary flex items-center gap-2">
+                        ✓ CURRENTLY APPLIED
+                      </div>
+                      <div className="text-xs text-secondary mt-1">
+                        You Save ₹{discount.toLocaleString()}
+                      </div>
+                    </div>
+                  );
+                } else if (!isMet) {
+                  const missingCpu = Math.max(0, offer.min_vcpu - vCPU);
+                  const missingRam = Math.max(0, offer.min_ram - ram);
+                  return (
+                    <div key={offer.name} className="p-5 rounded-2xl border bg-[#0a1128]/50 border-gray-800 opacity-70 grayscale">
+                      <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-500 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        {offer.name}
+                      </div>
+                      <div className="text-2xl font-bold text-gray-400 mb-4">{offer.discount}% OFF</div>
+                      <div className="text-xs text-gray-500 space-y-1 mb-4 border-b border-gray-800 pb-3">
+                        <div className="text-gray-400 font-semibold">Requirements:</div>
+                        <div>{offer.min_vcpu} vCPU</div>
+                        <div>{offer.min_ram} GB RAM</div>
+                      </div>
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <div className="text-gray-400 font-semibold">Current:</div>
+                        <div>{vCPU} vCPU</div>
+                        <div>{ram} GB RAM</div>
+                      </div>
+                      <div className="text-xs font-medium text-orange-400/80 mt-3 pt-3 border-t border-gray-800 space-y-1">
+                        {missingCpu > 0 && <div>Need {missingCpu} More vCPU</div>}
+                        {missingRam > 0 && <div>Need {missingRam} More GB RAM</div>}
+                      </div>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div key={offer.name} className="p-5 rounded-2xl border bg-[#0a1128] border-gray-700 opacity-60">
+                      <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-400">
+                        {offer.name}
+                      </div>
+                      <div className="text-2xl font-bold text-gray-400 mb-4">{offer.discount}% OFF</div>
+                      <div className="text-xs text-gray-500">Requirements met, but a higher offer is applied.</div>
+                    </div>
+                  );
+                }
+              })}
+            </div>
+
+          </div>
+
+          {/* Right Column: Live Price Calculator */}
+          <div className="lg:col-span-4">
+            <div className="bg-gradient-to-b from-[#0a1128]/90 to-[#020817] backdrop-blur-xl border border-gray-800 rounded-3xl p-8 shadow-2xl sticky top-28">
+              
+              {/* LIVE OFFER STATUS BAR */}
+              <div className="mb-6">
+                {appliedOffer ? (
+                  <div className="bg-emerald-900/20 border border-secondary/50 rounded-xl p-4 flex items-center gap-3">
+                    <span className="text-3xl">
+                      {appliedOffer.name === 'Startup Offer' ? '🎉' : appliedOffer.name === 'Business Offer' ? '🚀' : '🏆'}
+                    </span>
+                    <div>
+                      <div className="font-bold text-secondary">{appliedOffer.name} Applied</div>
+                      <div className="text-sm text-emerald-200/70">You are saving {appliedOffer.discount}% on this configuration.</div>
+                    </div>
+                  </div>
+                ) : nextOffer ? (
+                  <div className="bg-emerald-900/20 border border-secondary/30 rounded-xl p-4 flex items-center gap-3">
+                    <span className="text-3xl">💡</span>
+                    <div>
+                      <div className="font-bold text-secondary">Unlock Discounts</div>
+                      <div className="text-sm text-emerald-200/70">
+                        {getMissingText(nextOffer)} to unlock {nextOffer.name} ({nextOffer.discount}% OFF)
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="bg-[#020817] rounded-xl p-6 border border-gray-800 mb-6 space-y-4">
+                <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-4 border-b border-gray-800 pb-2">Configuration Summary</h4>
+                
+                <div className="flex justify-between items-center text-gray-300 text-sm">
+                  <span>CPU Cost:</span>
+                  <span className="font-medium text-white">₹{vCPUPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-300 text-sm">
+                  <span>RAM Cost:</span>
+                  <span className="font-medium text-white">₹{ramPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-300 text-sm">
+                  <span>Storage Cost:</span>
+                  <span className="font-medium text-white">₹{ssdPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-300 text-sm">
+                  <span>Bandwidth Cost:</span>
+                  <span className="font-medium text-white">₹{bandwidthPrice.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-300 text-sm">
+                  <span>OS License Fee:</span>
+                  <span className={`font-medium ${osPrice === 0 ? 'text-emerald-400' : 'text-white'}`}>
+                    {osPrice === 0 ? 'FREE' : `₹${osPrice.toLocaleString()}/month`}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-gray-300 text-sm">
+                  <span>Backup Cost:</span>
+                  <span className="font-medium text-white">₹{backupPrice.toLocaleString()}</span>
+                </div>
+                
+                <div className="flex justify-between items-center text-white font-bold text-lg pt-4 border-t border-gray-800">
+                  <span>Subtotal:</span>
+                  <span>₹{subtotal.toLocaleString()}</span>
+                </div>
+
+                {appliedOffer && (
+                  <div className="bg-emerald-900/10 rounded-lg p-3 mt-4 border border-secondary/20 space-y-2">
+                    <div className="flex justify-between items-center text-gray-300 text-sm">
+                      <span>Offer Applied:</span>
+                      <span className="text-secondary font-bold">{appliedOffer.name} ({appliedOffer.discount}%)</span>
+                    </div>
+                    <div className="flex justify-between items-center text-secondary text-sm font-medium">
+                      <span>Discount:</span>
+                      <span>-₹{discount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-secondary text-sm font-bold border-t border-secondary/20 pt-2 mt-2">
+                      <span>You Save:</span>
+                      <span>₹{discount.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <SubscriptionPlanSelector onChange={setBillingDuration} />
+
+              <div className="mb-6 p-6 bg-gradient-to-br from-emerald-900/20 to-[#020817] border border-secondary/30 rounded-2xl text-center shadow-lg">
+                <span className="block text-sm text-gray-400 font-medium mb-2 uppercase tracking-wider">Monthly Subscription</span>
+                <div className="text-5xl font-extrabold text-white flex justify-center items-baseline gap-1 mb-4">
+                  <span className="text-3xl text-gray-500 font-medium">₹</span>
+                  {monthlyPrice.toLocaleString()}
+                </div>
+                <div className="text-sm font-medium text-gray-400 border-t border-gray-800/80 pt-4 flex flex-col gap-2 text-left">
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>Contract Value ({billingDuration.durationMultiplier} Months):</span>
+                    <span className="font-semibold text-white">₹{durationSubtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-gray-300">
+                    <span>GST (18%):</span>
+                    <span className="font-semibold text-white">₹{gstAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center font-bold text-base border-t border-gray-800 pt-3 mt-1">
+                    <span className="text-white">Total Payable:</span>
+                    <span className="text-secondary text-lg">₹{grandTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button 
+                  onClick={handleAction} 
+                  className="w-full py-4 px-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold transition-colors shadow-lg shadow-secondary/25 flex items-center justify-center gap-2"
+                >
+                  Order Now
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                </button>
+                <button 
+                  onClick={handleAction} 
+                  className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors border border-slate-700"
+                >
+                  Request Quote
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Enterprise Infrastructure Section */}
+      <InfrastructureSection />
+
+      {/* Ready to Deploy CTA */}
+      <ContactCTASection />
+
+      {/* Modals */}
+      <LoginRequiredModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      <OrderSummaryModal isOpen={showSummaryModal} onClose={() => setShowSummaryModal(false)} config={currentConfig} user={user} onSuccess={handleSuccess} />
+      <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} quote={createdQuote} />
+    </div>
+  );
+};
+
+export default EnterpriseServerPage;

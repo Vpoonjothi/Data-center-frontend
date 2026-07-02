@@ -1,0 +1,16 @@
+{
+  "name": "GreenLeaf Admin",
+  "short_name": "Admin",
+  "start_url": "/admin/dashboard",
+  "display": "standalone",
+  "background_color": "#020817",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

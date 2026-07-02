@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AdminAuthContext } from '../context/AdminAuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,6 +7,26 @@ const AdminLayout = () => {
   const { admin, logout } = useContext(AdminAuthContext);
   const location = useLocation();
   const navigate = useNavigate();
+  const [canInstall, setCanInstall] = useState(!!window.deferredPrompt);
+
+  useEffect(() => {
+    const handlePromptReady = () => setCanInstall(true);
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
+
+    return () => {
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!window.deferredPrompt) return;
+    window.deferredPrompt.prompt();
+    const { outcome } = await window.deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      window.deferredPrompt = null;
+      setCanInstall(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -22,6 +42,10 @@ const AdminLayout = () => {
     { name: 'Payments', path: '/admin/payments', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
     { name: 'Enquiries', path: '/admin/enquiries', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z' },
     { name: 'Compliance', path: '/admin/compliance', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { name: 'Offers', path: '/admin/offers', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { name: 'Enterprise Specs', path: '/admin/enterprise-settings', icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01' },
+    { name: 'AI Server Specs', path: '/admin/ai-settings', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+    { name: 'Colocation Specs', path: '/admin/colocation-settings', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
     { name: 'Settings', path: '/admin/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
   ];
 
@@ -135,6 +159,61 @@ const AdminLayout = () => {
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* Floating 3D App Block PWA Install Button */}
+        <AnimatePresence>
+          {canInstall && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.9 }}
+              className="fixed bottom-10 right-10 z-50"
+              style={{ perspective: 1000 }}
+            >
+              <motion.button
+                animate={{ y: [0, -15, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                onClick={handleInstallClick}
+                className="relative w-16 h-16 rounded-[1.25rem] group cursor-pointer shadow-[0_15px_35px_-10px_rgba(26,128,29,0.6)] hover:shadow-[0_20px_40px_-10px_rgba(26,128,29,0.8)] transition-shadow duration-500"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                <div 
+                  className="absolute inset-0 w-full h-full transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:[transform:rotateY(180deg)]"
+                  style={{ transformStyle: 'preserve-3d' }}
+                >
+                  {/* Front Side: The Leaf App Icon */}
+                  <div 
+                    className="absolute inset-0 w-full h-full bg-gradient-to-tr from-[#0F4A11] via-[#1A801D] to-[#2EAA32] rounded-[1.25rem] border-t border-white/40 border-b border-black/30 flex items-center justify-center overflow-hidden" 
+                    style={{ backfaceVisibility: 'hidden' }}
+                  >
+                    {/* Inner glass glare for 3D realism */}
+                    <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/30 to-transparent"></div>
+                    
+                    <svg className="w-8 h-8 text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.3)] relative z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+                      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+                    </svg>
+                  </div>
+                  
+                  {/* Back Side: Dark Neon Install CTA */}
+                  <div 
+                    className="absolute inset-0 w-full h-full bg-[#020817] rounded-[1.25rem] border border-secondary flex flex-col items-center justify-center [transform:rotateY(180deg)] overflow-hidden" 
+                    style={{ backfaceVisibility: 'hidden' }}
+                  >
+                    {/* Glowing pulse on the back */}
+                    <div className="absolute inset-0 bg-secondary/30 animate-pulse rounded-[1.25rem]"></div>
+                    <svg className="w-5 h-5 text-[#2EAA32] mb-0.5 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span className="text-white font-extrabold text-[10px] uppercase tracking-wider relative z-10">
+                      Install
+                    </span>
+                  </div>
+                </div>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

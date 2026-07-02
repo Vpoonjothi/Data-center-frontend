@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import DynamicContent from '../shared/DynamicContent';
 
 const HeroSection = () => {
   return (
@@ -29,8 +30,10 @@ const HeroSection = () => {
             transition={{ duration: 0.6 }}
             className="text-5xl md:text-6xl lg:text-[64px] font-heading font-extrabold text-white mb-6 leading-[1.1] tracking-tight"
           >
-            High-Performance <br />
-            <span className="text-[#166E18]">Server Infrastructure</span>
+            <DynamicContent contentKey="home.hero.title_start" fallback="High-Performance" /> <br />
+            <span className="text-[#166E18]">
+              <DynamicContent contentKey="home.hero.title_highlight" fallback="Server Infrastructure" />
+            </span>
           </motion.h1>
           
           <motion.p 
@@ -39,7 +42,7 @@ const HeroSection = () => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-lg text-[#64748B] mb-10 max-w-xl leading-relaxed font-normal"
           >
-            Greenleaf delivers reliable, scalable, and secure dedicated servers engineered for your most demanding enterprise and AI workloads.
+            <DynamicContent contentKey="home.hero.subtitle" fallback="Greenleaf delivers reliable, scalable, and secure dedicated servers engineered for your most demanding enterprise and AI workloads." />
           </motion.p>
 
           <motion.div 

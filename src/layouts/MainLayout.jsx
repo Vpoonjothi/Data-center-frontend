@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import TopBar from '../components/common/TopBar';
 import Navbar from '../components/common/Navbar';
 import Footer from '../components/common/Footer';
+import GlobalSecurityIcon from '../components/shared/GlobalSecurityIcon';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -24,6 +25,7 @@ const MainLayout = () => {
         <Outlet />
       </main>
       {!isAuthPage && <Footer />}
+      <GlobalSecurityIcon />
     </div>
   );
 };

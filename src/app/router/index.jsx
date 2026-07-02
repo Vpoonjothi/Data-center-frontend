@@ -12,6 +12,7 @@ import FacilityDetailsPage from '../../pages/DataCenter/FacilityDetailsPage';
 import ContactPage from '../../pages/Contact/ContactPage';
 import NotFoundPage from '../../pages/NotFound/NotFoundPage';
 import EnterpriseServerPage from '../../pages/Servers/EnterpriseServerPage';
+import EnterpriseSecurityPage from '../../pages/Servers/EnterpriseSecurityPage';
 import AIServerPage from '../../pages/Servers/AIServerPage';
 import ColocationPage from '../../pages/Services/ColocationPage';
 
@@ -52,7 +53,11 @@ import AdminServicesPage from '../../pages/Admin/AdminServicesPage';
 import AdminPaymentsPage from '../../pages/Admin/AdminPaymentsPage';
 import AdminComplianceLogsPage from '../../pages/Admin/AdminComplianceLogsPage';
 import AdminSettingsPage from '../../pages/Admin/AdminSettingsPage';
-
+import AdminOffersPage from '../../pages/Admin/AdminOffersPage';
+import AdminContentPage from '../../pages/Admin/AdminContentPage';
+import AdminEnterpriseSettingsPage from '../../pages/Admin/AdminEnterpriseSettingsPage';
+import AdminAiSettingsPage from '../../pages/Admin/AdminAiSettingsPage';
+import AdminColocationSettingsPage from '../../pages/Admin/AdminColocationSettingsPage';
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -98,6 +103,10 @@ export const router = createBrowserRouter([
       {
         path: 'enterprise-servers',
         element: <EnterpriseServerPage />,
+      },
+      {
+        path: 'enterprise-security',
+        element: <EnterpriseSecurityPage />,
       },
       {
         path: 'ai-servers',
@@ -274,6 +283,26 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: <AdminSettingsPage />
+      },
+      {
+        path: 'offers',
+        element: <AdminOffersPage />
+      },
+      {
+        path: 'content',
+        element: <AdminContentPage />
+      },
+      {
+        path: 'enterprise-settings',
+        element: <AdminEnterpriseSettingsPage />
+      },
+      {
+        path: 'ai-settings',
+        element: <AdminAiSettingsPage />
+      },
+      {
+        path: 'colocation-settings',
+        element: <AdminColocationSettingsPage />
       }
     ]
   }

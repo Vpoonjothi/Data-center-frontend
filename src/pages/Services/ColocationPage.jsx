@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import InfrastructureSection from '../../components/shared/InfrastructureSection';
 import ContactCTASection from '../../components/sections/ContactCTASection';
 import { submitEnquiry } from '../../services/api';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
+import { ContentContext } from '../../context/ContentContext';
 
 const RACK_SIZES = [
   { units: 2, label: '2U Rack Space' },
@@ -32,10 +32,14 @@ const LEASED_LINE_OPTIONS = [
   { speed: '100 Mbps', price: 30000 }
 ];
 
-const STATIC_IP_PRICE = 1000;
-const RACK_U_PRICE = 500;
+const STATIC_IP_PRICE_DEFAULT = 1000;
+const RACK_U_PRICE_DEFAULT = 500;
 
 const ColocationPage = () => {
+  const { getContent } = React.useContext(ContentContext);
+  
+  const STATIC_IP_PRICE = Number(getContent('Colocation Static IP Price', STATIC_IP_PRICE_DEFAULT));
+  const RACK_U_PRICE = Number(getContent('Colocation Rack Price Per U', RACK_U_PRICE_DEFAULT));
   const [rackRequirement, setRackRequirement] = useState('GreenLeaf');
   const [selectedRack, setSelectedRack] = useState(RACK_SIZES[0]);
   const [internetType, setInternetType] = useState('Broadband');
@@ -487,8 +491,6 @@ const ColocationPage = () => {
         </div>
       </section>
 
-      {/* Enterprise Infrastructure Section */}
-      <InfrastructureSection />
 
       {/* Ready to Deploy CTA */}
       <ContactCTASection />

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ENTERPRISE_PRICING, ENTERPRISE_OFFERS } from '../../constants/pricingData';
-import InfrastructureSection from '../../components/shared/InfrastructureSection';
+import { ENTERPRISE_PRICING } from '../../constants/pricingData';
+import { getOffers } from '../../services/api';
 import ContactCTASection from '../../components/sections/ContactCTASection';
 import { AuthContext } from '../../context/AuthContext';
+import { ContentContext } from '../../context/ContentContext';
 import { LoginRequiredModal, OrderSummaryModal, SuccessModal } from '../../components/calculator/OrderModals';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
@@ -12,8 +13,24 @@ import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
 const EnterpriseServerPage = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { getContent } = useContext(ContentContext);
 
   // Configuration State
+  const [offers, setOffers] = useState([]);
+  
+  useEffect(() => {
+    const loadOffers = async () => {
+      try {
+        const data = await getOffers();
+        // Sort by discount descending to ensure we check highest discount first
+        setOffers(data.sort((a, b) => b.discount - a.discount));
+      } catch (err) {
+        console.error('Failed to load offers:', err);
+      }
+    };
+    loadOffers();
+  }, []);
+
   const [vCPU, setVCPU] = useState(ENTERPRISE_PRICING.vCPU.min);
   const [ram, setRam] = useState(ENTERPRISE_PRICING.RAM.min);
   const [ssd, setSsd] = useState(ENTERPRISE_PRICING.SSD.min);
@@ -37,9 +54,13 @@ const EnterpriseServerPage = () => {
   });
 
   // Calculate Base Components (Derived State)
-  const vCPUPrice = vCPU * ENTERPRISE_PRICING.vCPU.price;
-  const ramPrice = ram * ENTERPRISE_PRICING.RAM.price;
-  const ssdPrice = (ssd / ENTERPRISE_PRICING.SSD.baseIncrement) * ENTERPRISE_PRICING.SSD.price;
+  const baseVcpuPrice = Number(getContent('Enterprise Base CPU Price', ENTERPRISE_PRICING.vCPU.price));
+  const baseRamPrice = Number(getContent('Enterprise Base RAM Price', ENTERPRISE_PRICING.RAM.price));
+  const baseSsdPrice = Number(getContent('Enterprise Base SSD Price', ENTERPRISE_PRICING.SSD.price));
+
+  const vCPUPrice = vCPU * baseVcpuPrice;
+  const ramPrice = ram * baseRamPrice;
+  const ssdPrice = (ssd / ENTERPRISE_PRICING.SSD.baseIncrement) * baseSsdPrice;
   const bandwidthPrice = bandwidth.price;
   const osPrice = os.price;
   const backupPrice = backup ? ENTERPRISE_PRICING.Backup.price : 0;
@@ -48,22 +69,29 @@ const EnterpriseServerPage = () => {
 
   // Determine Applicable Offer
   let appliedOffer = null;
-  if (vCPU >= 16 && ram >= 32) {
-    appliedOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Enterprise Offer');
-  } else if (vCPU >= 8 && ram >= 16) {
-    appliedOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Business Offer');
-  } else if (vCPU >= 4 && ram >= 8) {
-    appliedOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Startup Offer');
+  // Since offers are sorted by discount descending, the first one that matches the criteria is the best one
+  for (const offer of offers) {
+    if (vCPU >= offer.min_vcpu && ram >= offer.min_ram) {
+      appliedOffer = offer;
+      break;
+    }
   }
 
   // Determine Next Offer for Upsell
+  // Determine Next Offer for Upsell (the next offer with a higher discount than the currently applied one, or just the lowest requirement offer if none applied)
   let nextOffer = null;
   if (!appliedOffer) {
-    nextOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Startup Offer');
-  } else if (appliedOffer.name === 'Startup Offer') {
-    nextOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Business Offer');
-  } else if (appliedOffer.name === 'Business Offer') {
-    nextOffer = ENTERPRISE_OFFERS.find(o => o.name === 'Enterprise Offer');
+    // If no offer applied, the next offer is the one with the lowest requirements
+    // Assuming the last element in the sorted array has the lowest requirements (lowest discount)
+    if (offers.length > 0) {
+      nextOffer = [...offers].reverse().find(o => vCPU < o.min_vcpu || ram < o.min_ram);
+    }
+  } else {
+    // Find the offer with the smallest discount that is still larger than the current discount
+    const betterOffers = offers.filter(o => o.discount > appliedOffer.discount && (vCPU < o.min_vcpu || ram < o.min_ram));
+    if (betterOffers.length > 0) {
+      nextOffer = betterOffers[betterOffers.length - 1]; // Because it's sorted descending, the last one is the smallest better offer
+    }
   }
 
   const getMissingText = (offer) => {
@@ -361,7 +389,7 @@ const EnterpriseServerPage = () => {
 
             {/* Promotional Offers Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative" style={{ zIndex: 10 }}>
-              {ENTERPRISE_OFFERS.map(offer => {
+              {offers.map(offer => {
                 const isApplied = appliedOffer?.name === offer.name;
                 const isMet = vCPU >= offer.min_vcpu && ram >= offer.min_ram;
                 
@@ -557,8 +585,6 @@ const EnterpriseServerPage = () => {
         </div>
       </section>
 
-      {/* Enterprise Infrastructure Section */}
-      <InfrastructureSection />
 
       {/* Ready to Deploy CTA */}
       <ContactCTASection />

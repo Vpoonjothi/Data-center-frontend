@@ -4,6 +4,7 @@ import AboutUsSection from '../../components/sections/AboutUsSection';
 import ServicesSection from '../../components/sections/ServicesSection';
 import WhyChooseUsSection from '../../components/sections/WhyChooseUsSection';
 import ContactCTASection from '../../components/sections/ContactCTASection';
+import DynamicContent from '../../components/shared/DynamicContent';
 
 const HomePage = () => {
   return (

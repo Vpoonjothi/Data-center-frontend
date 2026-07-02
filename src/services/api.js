@@ -130,4 +130,22 @@ export const getMyPayments = async () => {
   return response.data;
 };
 
+// --- OFFERS ---
+export const getOffers = async () => {
+  const response = await api.get('/offers');
+  return response.data;
+};
+
+// --- CONTENT CMS ---
+export const getContentBlocks = async () => {
+  const response = await api.get('/content');
+  return response.data; // object mapping keys to blocks
+};
+
+// AI Servers
+export const getAiServers = async () => {
+  const response = await api.get('/ai-servers');
+  return response.data;
+};
+
 export default api;

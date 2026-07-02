@@ -1,7 +1,12 @@
-import React, { useRef, useState } from 'react';
+// Force Vite HMR reload
+import React, { useRef, useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
+import { ContentContext } from '../../context/ContentContext';
 import { Link } from 'react-router-dom';
-import { submitEnquiry } from '../../services/api';
+import { submitEnquiry, getAiServers } from '../../services/api';
+import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
+import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
+
 const SpecIcon = ({ icon }) => {
   switch (icon) {
     case 'cpu':
@@ -21,13 +26,30 @@ const SpecIcon = ({ icon }) => {
   }
 };
 
-import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
-import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
-import InfrastructureSection from '../../components/shared/InfrastructureSection';
-
 const AIServerPage = () => {
   const formRef = useRef(null);
   
+  const [servers, setServers] = useState([]);
+  const [activeServer, setActiveServer] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchServers = async () => {
+      try {
+        const data = await getAiServers();
+        setServers(data);
+        if (data.length > 0) {
+          setActiveServer(data[0]);
+        }
+      } catch (err) {
+        console.error('Failed to fetch AI servers', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchServers();
+  }, []);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -44,9 +66,8 @@ const AIServerPage = () => {
     durationMultiplier: 1
   });
 
-  const monthlyPrice = 35000;
   const { contractValue: durationSubtotal, gstAmount, totalPayable: grandTotal } = calculateSubscriptionPricing(
-    monthlyPrice,
+    activeServer?.monthly_price || 0,
     billingDuration.duration_value,
     billingDuration.duration_unit
   );
@@ -68,15 +89,15 @@ const AIServerPage = () => {
     
     try {
       const configJson = {
-        model: 'AI Compute Pro 5060 Ti',
-        cpu: 'Intel Core Ultra i7',
-        ram: '64GB DDR5',
-        storage: '2 × 2TB NVMe SSD',
-        gpu: 'RTX 5060 Ti 16GB',
+        model: activeServer.name,
+        cpu: activeServer.cpu,
+        ram: activeServer.ram,
+        storage: activeServer.storage,
+        gpu: activeServer.gpu,
         duration_type: billingDuration.duration_type,
         duration_value: billingDuration.duration_value,
         duration_unit: billingDuration.duration_unit,
-        monthly_price: `₹${monthlyPrice.toLocaleString()}`,
+        monthly_price: `₹${activeServer.monthly_price.toLocaleString()}`,
         subtotal_price: `₹${durationSubtotal.toLocaleString()}`,
         gst_amount: `₹${gstAmount.toLocaleString()}`,
         grand_total: `₹${grandTotal.toLocaleString()}`
@@ -105,6 +126,14 @@ const AIServerPage = () => {
     }
   };
 
+  if (loading) {
+    return <div className="min-h-screen bg-[#020817] pt-20 flex items-center justify-center text-white">Loading AI Servers...</div>;
+  }
+
+  if (servers.length === 0) {
+    return <div className="min-h-screen bg-[#020817] pt-20 flex items-center justify-center text-white">No AI Servers currently available.</div>;
+  }
+
   return (
     <div className="min-h-screen bg-[#020817] pt-20">
       
@@ -118,14 +147,14 @@ const AIServerPage = () => {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-sm font-medium mb-8"
           >
             <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-            Dedicated AI Server
+            Dedicated AI Server Models
           </motion.div>
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight"
           >
-            AI Compute Pro 5060 Ti
+            Power Your Next Breakthrough
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
@@ -133,12 +162,15 @@ const AIServerPage = () => {
             transition={{ delay: 0.1 }}
             className="text-xl md:text-2xl text-gray-400 max-w-4xl mx-auto mb-10"
           >
-            High-performance AI server powered by Intel Core Ultra i7 and NVIDIA RTX 5060 Ti 16GB graphics.
+            High-performance AI servers built for intensive compute workloads, machine learning, and data analytics.
           </motion.p>
+          
+
+
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row justify-center gap-4"
           >
             <button 
@@ -158,45 +190,97 @@ const AIServerPage = () => {
         </div>
       </section>
 
-      {/* 2. Server Specifications Section */}
-      <section className="py-20 bg-[#0a1128] border-b border-gray-800">
+      {/* 2. AI Servers Pricing Grid */}
+      <section className="py-24 bg-[#0a1128] border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Server Specifications</h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">High-performance hardware configured for intensive workloads.</p>
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Choose Your AI Powerhouse</h2>
+            <p className="text-gray-400 max-w-2xl mx-auto mb-8">Compare specifications and find the perfect dedicated server for your machine learning workloads.</p>
+            <div className="flex justify-center">
+              <SubscriptionPlanSelector onChange={setBillingDuration} />
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-[#020817] p-6 rounded-2xl border border-gray-800 hover:border-secondary/50 transition-colors group">
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><SpecIcon icon="cpu" /></div>
-              <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1">Processor</div>
-              <div className="text-lg font-bold text-white">Intel Core Ultra i7</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="bg-[#020817] p-6 rounded-2xl border border-gray-800 hover:border-secondary/50 transition-colors group">
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><SpecIcon icon="ram" /></div>
-              <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1">Memory</div>
-              <div className="text-lg font-bold text-white">64GB DDR5</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="bg-[#020817] p-6 rounded-2xl border border-gray-800 hover:border-secondary/50 transition-colors group">
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><SpecIcon icon="storage" /></div>
-              <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1">Storage</div>
-              <div className="text-lg font-bold text-white">2 × 2TB M.2 NVMe SSD</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="bg-[#020817] p-6 rounded-2xl border border-gray-800 hover:border-secondary/50 transition-colors group">
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><SpecIcon icon="gpu" /></div>
-              <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1">Graphics</div>
-              <div className="text-lg font-bold text-white">NVIDIA RTX 5060 Ti 16GB</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }} className="bg-[#020817] p-6 rounded-2xl border border-gray-800 hover:border-secondary/50 transition-colors group">
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><SpecIcon icon="network" /></div>
-              <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1">Network</div>
-              <div className="text-lg font-bold text-white">10 Gbps Port</div>
-            </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.5 }} className="bg-[#020817] p-6 rounded-2xl border border-gray-800 hover:border-secondary/50 transition-colors group">
-              <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><SpecIcon icon="support" /></div>
-              <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider mb-1">Support</div>
-              <div className="text-lg font-bold text-white">24/7 Technical Support</div>
-            </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {servers.map((server, index) => {
+              const contractValue = server.monthly_price * billingDuration.durationMultiplier;
+              const gst = contractValue * 0.18;
+              const total = contractValue + gst;
+              
+              return (
+              <motion.div 
+                key={server.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-[#020817] rounded-3xl border border-gray-800 hover:border-secondary/50 transition-all shadow-2xl hover:shadow-secondary/20 flex flex-col overflow-hidden"
+              >
+                <div className="p-6 border-b border-gray-800 bg-gradient-to-br from-emerald-900/20 to-transparent">
+                  <h3 className="text-xl font-bold text-white mb-2">{server.name}</h3>
+                  <div className="flex flex-col gap-1 mb-1">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-extrabold text-secondary">₹{total.toLocaleString()}</span>
+                      <span className="text-gray-500 text-xs"> total</span>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      (₹{server.monthly_price.toLocaleString()}/mo x {billingDuration.durationMultiplier} mo + 18% GST)
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-6 flex-1 flex flex-col bg-[#020817]">
+                  <ul className="space-y-3 mb-6 flex-1">
+                    <li className="flex items-start gap-3">
+                      <div className="mt-0.5 text-secondary"><SpecIcon icon="gpu" /></div>
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-semibold leading-none mb-1">GPU</div>
+                        <div className="text-white font-medium text-sm leading-tight">{server.gpu}</div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-0.5 text-secondary"><SpecIcon icon="cpu" /></div>
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-semibold leading-none mb-1">CPU</div>
+                        <div className="text-gray-300 text-sm leading-tight">{server.cpu}</div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-0.5 text-secondary"><SpecIcon icon="ram" /></div>
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-semibold leading-none mb-1">Memory</div>
+                        <div className="text-gray-300 text-sm leading-tight">{server.ram}</div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-0.5 text-secondary"><SpecIcon icon="storage" /></div>
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-semibold leading-none mb-1">Storage</div>
+                        <div className="text-gray-300 text-sm leading-tight">{server.storage}</div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-0.5 text-secondary"><SpecIcon icon="network" /></div>
+                      <div>
+                        <div className="text-[10px] text-gray-500 uppercase font-semibold leading-none mb-1">Network</div>
+                        <div className="text-gray-300 text-sm leading-tight">{server.network}</div>
+                      </div>
+                    </li>
+                  </ul>
+                  
+                  <button 
+                    onClick={() => {
+                      setActiveServer(server);
+                      scrollToForm();
+                    }}
+                    className="w-full py-3 bg-[#0a1128] hover:bg-secondary text-white rounded-xl font-bold text-sm transition-colors border border-gray-700 hover:border-transparent flex items-center justify-center gap-2 mt-auto"
+                  >
+                    Request Quote
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                  </button>
+                </div>
+              </motion.div>
+            )})}
           </div>
         </div>
       </section>
@@ -206,7 +290,7 @@ const AIServerPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-16">Key Benefits</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {['Dedicated RTX 5060 Ti GPU', '64GB DDR5 Memory', '4TB NVMe SSD Storage', '10Gbps High-Speed Network'].map((benefit, idx) => (
+            {['Dedicated GPU Resources', 'High-Speed DDR5 Memory', 'Ultra-Fast NVMe SSD Storage', '10Gbps High-Speed Network'].map((benefit, idx) => (
               <motion.div 
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
@@ -225,63 +309,6 @@ const AIServerPage = () => {
         </div>
       </section>
 
-      {/* 4. Pricing Card Section */}
-      <section className="py-20 bg-[#0a1128] border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto bg-gradient-to-br from-emerald-900/40 to-[#020817] rounded-3xl p-1 border border-secondary/20 shadow-2xl shadow-emerald-900/20">
-            <div className="bg-[#020817] rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-10">
-              <div className="flex-1">
-                <h3 className="text-3xl font-bold text-white mb-2">AI Compute Pro 5060 Ti</h3>
-                <p className="text-secondary font-semibold mb-6">High-Performance Dedicated Server</p>
-                <ul className="space-y-3 mb-8">
-                  {['Intel Core Ultra i7', '64GB DDR5 RAM', '2 × 2TB NVMe SSD', 'RTX 5060 Ti 16GB'].map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-gray-300">
-                      <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="flex-1 w-full md:border-l border-gray-800 md:pl-10 flex flex-col justify-center">
-                <SubscriptionPlanSelector onChange={setBillingDuration} />
-                <div className="bg-[#020817] p-5 rounded-xl border border-gray-800 text-left mb-6 space-y-2 text-sm text-gray-300">
-                  <div className="flex justify-between items-center">
-                    <span>Monthly Subscription:</span>
-                    <span className="font-semibold text-white">₹{monthlyPrice.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Contract Value ({billingDuration.durationMultiplier} Months):</span>
-                    <span className="font-semibold text-white">₹{durationSubtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>GST (18%):</span>
-                    <span className="font-semibold text-white">₹{gstAmount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center font-bold text-base border-t border-gray-800 pt-2 mt-2">
-                    <span className="text-secondary">Total Payable:</span>
-                    <span className="text-xl text-white">₹{grandTotal.toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button 
-                    onClick={scrollToForm}
-                    className="flex-1 py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25"
-                  >
-                    Request Quote
-                  </button>
-                  <Link 
-                    to="/contact"
-                    className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg transition-colors border border-slate-700 flex items-center justify-center"
-                  >
-                    Contact Sales
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* 5. Lead Form */}
       <section ref={formRef} className="py-24 relative overflow-hidden bg-[#020817]">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[500px] bg-emerald-900/10 blur-[150px] pointer-events-none rounded-full"></div>
@@ -290,7 +317,7 @@ const AIServerPage = () => {
           <div className="bg-[#0a1128]/80 backdrop-blur-xl border border-gray-800 rounded-3xl p-8 md:p-12 shadow-2xl">
             
             <div className="text-center mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Request a Quote</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Request a Quote for {activeServer.name}</h2>
               <p className="text-gray-400">Fill out the form below and our sales team will contact you shortly.</p>
             </div>
 
@@ -392,8 +419,6 @@ const AIServerPage = () => {
         </div>
       </section>
 
-      {/* Enterprise Infrastructure Section */}
-      <InfrastructureSection />
 
       {/* 6. Contact CTA */}
       <section className="py-20 bg-emerald-900 text-center">

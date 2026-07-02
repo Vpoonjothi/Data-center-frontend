@@ -57,6 +57,29 @@ export const deleteUser = async (id) => {
   return response.data;
 };
 
+// --- AI SERVERS ---
+const AI_SERVER_API = 'http://localhost:5000/api/ai-servers';
+
+export const getAdminAiServers = async () => {
+  const response = await axios.get(`${AI_SERVER_API}/admin`, getConfig());
+  return response.data;
+};
+
+export const createAiServer = async (serverData) => {
+  const response = await axios.post(AI_SERVER_API, serverData, getConfig());
+  return response.data;
+};
+
+export const updateAiServer = async (id, serverData) => {
+  const response = await axios.put(`${AI_SERVER_API}/${id}`, serverData, getConfig());
+  return response.data;
+};
+
+export const deleteAiServer = async (id) => {
+  const response = await axios.delete(`${AI_SERVER_API}/${id}`, getConfig());
+  return response.data;
+};
+
 // Enquiries
 export const getEnquiries = async () => {
   const response = await axios.get(`${API_URL}/enquiries`, getConfig());
@@ -186,5 +209,39 @@ export const getComplianceLogs = async () => {
 
 export const getAuditLogs = async () => {
   const response = await axios.get(`${API_URL}/compliance/audit-logs`, getConfig());
+  return response.data;
+};
+
+// Offers (Using absolute URL since the route is on /api/offers not /api/admin/offers)
+export const updateOffer = async (id, data) => {
+  const token = localStorage.getItem('adminToken');
+  const response = await axios.put(`http://localhost:5000/api/offers/${id}`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+// Content CMS (Using absolute URL)
+export const createContentBlock = async (data) => {
+  const token = localStorage.getItem('adminToken');
+  const response = await axios.post(`http://localhost:5000/api/content`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const updateContentBlock = async (id, data) => {
+  const token = localStorage.getItem('adminToken');
+  const response = await axios.put(`http://localhost:5000/api/content/${id}`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const deleteContentBlock = async (id) => {
+  const token = localStorage.getItem('adminToken');
+  const response = await axios.delete(`http://localhost:5000/api/content/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
   return response.data;
 };

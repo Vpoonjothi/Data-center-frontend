@@ -218,7 +218,7 @@ const PaymentPage = () => {
                 </div>
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-lg text-white font-medium">Amount Due</span>
-                  <span className="text-2xl text-secondary font-bold">₹{parseFloat(details.amount).toLocaleString()}</span>
+                  <span className="text-2xl text-secondary font-bold">₹{parseFloat(details.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
               </div>
 

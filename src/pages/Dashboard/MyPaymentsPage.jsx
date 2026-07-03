@@ -73,7 +73,7 @@ const MyPaymentsPage = () => {
                         <span className="font-medium text-white">{payment.service?.service_name || 'N/A'}</span>
                       </td>
                       <td className="py-4 px-6 font-bold text-white">
-                        ₹{parseFloat(payment.amount).toLocaleString()}
+                        ₹{parseFloat(payment.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                       <td className="py-4 px-6 font-mono text-sm text-blue-300">
                         {payment.transaction_reference}

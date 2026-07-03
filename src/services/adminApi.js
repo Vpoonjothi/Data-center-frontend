@@ -131,9 +131,9 @@ export const getQuoteById = async (id) => {
   return response.data;
 };
 
-export const updateQuoteStatus = async (id, status, monthly_price, notes) => {
+export const updateQuoteStatus = async (id, status, final_amount, notes) => {
   const payload = { status };
-  if (monthly_price !== undefined) payload.monthly_price = monthly_price;
+  if (final_amount !== undefined) payload.final_amount = final_amount;
   if (notes !== undefined) payload.notes = notes;
   const response = await axios.put(`${API_URL}/quotes/${id}/status`, payload, getConfig());
   return response.data;

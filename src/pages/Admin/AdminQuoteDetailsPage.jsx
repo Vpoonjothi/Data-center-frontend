@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getQuoteById, updateQuoteStatus } from '../../services/adminApi';
-import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
+import { calculateSubscriptionPricing, calculateSubscriptionPricingFromFinal } from '../../utils/pricingCalculator';
 
 const AdminQuoteDetailsPage = () => {
   const { id } = useParams();
@@ -13,7 +13,7 @@ const AdminQuoteDetailsPage = () => {
   const [success, setSuccess] = useState('');
   
   // Form fields for quoting
-  const [monthlyPrice, setMonthlyPrice] = useState('');
+  const [finalAmount, setFinalAmount] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -25,7 +25,7 @@ const AdminQuoteDetailsPage = () => {
       const res = await getQuoteById(id);
       if (res.success) {
         setQuote(res.data);
-        setMonthlyPrice(res.data.monthly_price || '');
+        setFinalAmount(res.data.grand_total || '');
         setNotes(res.data.notes || '');
       }
     } catch (error) {
@@ -46,12 +46,12 @@ const AdminQuoteDetailsPage = () => {
       let notesToSave = undefined;
       
       if (newStatus === 'quoted') {
-        if (!monthlyPrice) {
-          setError('Monthly price is required to generate a quote.');
+        if (!finalAmount) {
+          setError('Final Quotation Amount is required to generate a quote.');
           setUpdating(false);
           return;
         }
-        priceToSave = monthlyPrice;
+        priceToSave = finalAmount;
         notesToSave = notes;
       }
       
@@ -70,11 +70,11 @@ const AdminQuoteDetailsPage = () => {
   };
 
   const previewPricing = useMemo(() => {
-    if (quote?.status === 'pending' && monthlyPrice) {
-      return calculateSubscriptionPricing(monthlyPrice, quote.duration_value, quote.duration_unit);
+    if (quote?.status === 'pending' && finalAmount) {
+      return calculateSubscriptionPricingFromFinal(finalAmount, quote.duration_value, quote.duration_unit);
     }
     return null;
-  }, [quote, monthlyPrice]);
+  }, [quote, finalAmount]);
 
   const displayMonthly = previewPricing ? previewPricing.monthlySubscription : parseFloat(quote?.monthly_price || 0);
   const displayContractValue = previewPricing ? previewPricing.contractValue : parseFloat(quote?.subtotal_price || quote?.monthly_price || 0);
@@ -165,7 +165,7 @@ const AdminQuoteDetailsPage = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Monthly Subscription</h3>
-                  <p className="text-white">₹{displayMonthly.toLocaleString()}</p>
+                  <p className="text-white">₹{displayMonthly.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Subscription Duration</h3>
@@ -173,16 +173,16 @@ const AdminQuoteDetailsPage = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Contract Value</h3>
-                  <p className="text-white">₹{displayContractValue.toLocaleString()}</p>
+                  <p className="text-white">₹{displayContractValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">GST (18%)</h3>
-                  <p className="text-white">₹{displayGst.toLocaleString()}</p>
+                  <p className="text-white">₹{displayGst.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 </div>
               </div>
               <div className="pt-4 border-t border-gray-800 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-300">Total Contract Value</h3>
-                <p className="text-2xl font-bold text-secondary">₹{displayTotal.toLocaleString()}</p>
+                <h3 className="text-lg font-bold text-gray-300">Final Quotation Amount</h3>
+                <p className="text-2xl font-bold text-secondary">₹{displayTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
               </div>
             </div>
           </div>
@@ -237,8 +237,8 @@ const AdminQuoteDetailsPage = () => {
                   <label className="block text-xs text-gray-500 mb-2">Final Quotation Amount (₹)</label>
                   <input 
                     type="number"
-                    value={monthlyPrice}
-                    onChange={(e) => setMonthlyPrice(e.target.value)}
+                    value={finalAmount}
+                    onChange={(e) => setFinalAmount(e.target.value)}
                     className="w-full bg-[#020817] border border-gray-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-secondary"
                     placeholder="e.g. 5000"
                   />
@@ -264,13 +264,32 @@ const AdminQuoteDetailsPage = () => {
 
             {quote.status === 'quoted' && (
               <div className="space-y-4">
-                <p className="text-sm text-gray-400">Waiting for customer payment. Once the payment is verified, mark it as received.</p>
+                <p className="text-sm text-gray-400">Waiting for customer to accept the quote.</p>
+              </div>
+            )}
+
+            {quote.status === 'verification_pending' && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-400">Customer accepted the quote. Waiting for KYC Verification to be completed in the KYC module.</p>
+              </div>
+            )}
+
+            {quote.status === 'verified' && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-400">KYC Verified. Waiting for customer to submit payment.</p>
+              </div>
+            )}
+
+            {quote.status === 'processing' && (
+              <div className="space-y-4">
+                <p className="text-sm text-blue-400 font-medium">Customer has submitted manual payment proof.</p>
+                <p className="text-sm text-gray-400">Review the payment in the Payments section. Once verified, mark it as received.</p>
                 <button 
                   onClick={() => handleUpdateStatus('paid')}
                   disabled={updating}
                   className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-800 disabled:text-gray-500 text-white rounded-lg text-sm font-bold transition-colors shadow-lg shadow-green-500/20"
                 >
-                  {updating ? 'Processing...' : 'Mark Payment as Received'}
+                  {updating ? 'Processing...' : 'Verify & Mark Payment Received'}
                 </button>
               </div>
             )}

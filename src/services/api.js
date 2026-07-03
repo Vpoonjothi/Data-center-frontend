@@ -97,8 +97,8 @@ export const getKycStatus = async (quoteId) => {
   return response.data;
 };
 
-export const startAadhaarVerification = async (quoteId, kycConsent) => {
-  const response = await api.post(`/kyc/aadhaar/start`, { quoteId, kycConsent });
+export const startAadhaarVerification = async (quoteId, kycConsent, otp, aadhaarNumber) => {
+  const response = await api.post(`/kyc/aadhaar/start`, { quoteId, kycConsent, otp, aadhaarNumber });
   return response.data;
 };
 

@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { submitKyc } from '../../services/api';
+import { submitKyc, startAadhaarVerification } from '../../services/api';
 import FileUpload from './FileUpload';
 
 const KycWizard = ({ quote, onComplete, initialData = {} }) => {
   const [step, setStep] = useState(1);
   const [customerType, setCustomerType] = useState('individual');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Aadhaar OTP State
+  const [aadhaarVerified, setAadhaarVerified] = useState(false);
+  const [aadhaarReferenceId, setAadhaarReferenceId] = useState(null);
+  const [otp, setOtp] = useState('');
+  const [verifyingAadhaar, setVerifyingAadhaar] = useState(false);
+  const [aadhaarError, setAadhaarError] = useState('');
+  const [aadhaarMessage, setAadhaarMessage] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -49,6 +57,45 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
     setFiles({ ...files, [e.target.name]: e.target.files[0] });
   };
 
+  const handleGenerateOtp = async () => {
+    try {
+      setVerifyingAadhaar(true);
+      setAadhaarError('');
+      setAadhaarMessage('');
+      const targetAadhaar = customerType === 'company' ? formData.auth_aadhaar_number : formData.aadhaar_number;
+      if (!targetAadhaar || targetAadhaar.length !== 12) {
+        setAadhaarError('Please enter a valid 12-digit Aadhaar number.');
+        setVerifyingAadhaar(false);
+        return;
+      }
+      const res = await startAadhaarVerification(quote.id, true, null, targetAadhaar);
+      if (res.data?.aadhaar_reference_id) {
+         setAadhaarReferenceId(res.data.aadhaar_reference_id);
+         setAadhaarMessage('OTP has been sent to your Aadhaar linked mobile number.');
+      }
+    } catch (err) {
+      setAadhaarError(err.response?.data?.message || 'Failed to generate OTP.');
+    } finally {
+      setVerifyingAadhaar(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    try {
+      setVerifyingAadhaar(true);
+      setAadhaarError('');
+      const res = await startAadhaarVerification(quote.id, true, otp);
+      if (res.success) {
+        setAadhaarVerified(true);
+        setAadhaarMessage('');
+      }
+    } catch (err) {
+      setAadhaarError(err.response?.data?.message || 'Failed to verify OTP.');
+    } finally {
+      setVerifyingAadhaar(false);
+    }
+  };
+
   const nextStep = () => setStep((s) => s + 1);
   const prevStep = () => setStep((s) => s - 1);
 
@@ -61,16 +108,12 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
       data.append('quoteId', quote.id);
       data.append('customer_type', customerType);
 
-      // Append text fields based on type
       if (customerType === 'individual') {
         data.append('full_name', formData.full_name);
         data.append('email_address', formData.email_address);
         data.append('mobile_number', formData.mobile_number);
         data.append('residential_address', formData.residential_address);
         data.append('aadhaar_number', formData.aadhaar_number);
-        
-        if (files.aadhaar_front) data.append('aadhaar_front', files.aadhaar_front);
-        if (files.aadhaar_back) data.append('aadhaar_back', files.aadhaar_back);
       } else {
         data.append('company_name', formData.company_name);
         data.append('gst_number', formData.gst_number);
@@ -81,13 +124,6 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
         data.append('official_email', formData.official_email);
         data.append('mobile_number', formData.mobile_number); // Company auth person mobile
         data.append('auth_aadhaar_number', formData.auth_aadhaar_number);
-
-        if (files.gst_cert) data.append('gst_cert', files.gst_cert);
-        if (files.pan_card) data.append('pan_card', files.pan_card);
-        if (files.company_reg) data.append('company_reg', files.company_reg);
-        if (files.address_proof) data.append('address_proof', files.address_proof);
-        if (files.aadhaar_front) data.append('aadhaar_front', files.aadhaar_front);
-        if (files.aadhaar_back) data.append('aadhaar_back', files.aadhaar_back);
       }
 
       await submitKyc(data);
@@ -178,9 +214,43 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
                     <label className="block text-sm text-gray-400 mb-2">Mobile Number *</label>
                     <input type="tel" name="mobile_number" value={formData.mobile_number} onChange={handleInputChange} className="w-full bg-[#020817] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-secondary" required />
                   </div>
-                  <div>
+                  <div className="md:col-span-2 border border-gray-800 p-4 rounded-xl bg-[#020817]">
                     <label className="block text-sm text-gray-400 mb-2">Aadhaar Number *</label>
-                    <input type="text" name="aadhaar_number" value={formData.aadhaar_number} onChange={handleInputChange} className="w-full bg-[#020817] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-secondary" required />
+                    <input 
+                      type="text" 
+                      name="aadhaar_number" 
+                      value={formData.aadhaar_number} 
+                      onChange={handleInputChange} 
+                      disabled={aadhaarVerified}
+                      className="w-full bg-[#0a1128] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-secondary disabled:opacity-50" 
+                      required 
+                    />
+                    
+                    {aadhaarError && <p className="text-red-500 text-sm mt-2">{aadhaarError}</p>}
+                    {aadhaarMessage && <p className="text-secondary text-sm mt-2">{aadhaarMessage}</p>}
+                    
+                    <div className="mt-4">
+                      {aadhaarVerified ? (
+                        <div className="flex items-center text-green-500 font-bold">
+                          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Aadhaar Verified
+                        </div>
+                      ) : (
+                        !aadhaarReferenceId ? (
+                          <button type="button" onClick={handleGenerateOtp} disabled={verifyingAadhaar} className="px-4 py-2 bg-secondary text-[#020817] font-bold rounded-lg disabled:opacity-50">
+                            {verifyingAadhaar ? 'Generating...' : 'Generate OTP'}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <input type="text" placeholder="6-digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} className="bg-[#0a1128] border border-gray-800 rounded-lg px-4 py-2 text-white focus:border-secondary w-32 tracking-widest text-center" />
+                            <button type="button" onClick={handleVerifyOtp} disabled={verifyingAadhaar || otp.length !== 6} className="px-4 py-2 bg-secondary text-[#020817] font-bold rounded-lg disabled:opacity-50">
+                              {verifyingAadhaar ? 'Verifying...' : 'Verify OTP'}
+                            </button>
+                            {aadhaarError && <button type="button" onClick={handleGenerateOtp} className="text-xs text-blue-400 hover:underline">Resend</button>}
+                          </div>
+                        )
+                      )}
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm text-gray-400 mb-2">Residential Address *</label>
@@ -222,9 +292,43 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
                     <label className="block text-sm text-gray-400 mb-2">Mobile Number *</label>
                     <input type="tel" name="mobile_number" value={formData.mobile_number} onChange={handleInputChange} className="w-full bg-[#020817] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-secondary" required />
                   </div>
-                  <div>
+                  <div className="md:col-span-2 border border-gray-800 p-4 rounded-xl bg-[#020817]">
                     <label className="block text-sm text-gray-400 mb-2">Authorized Aadhaar Number *</label>
-                    <input type="text" name="auth_aadhaar_number" value={formData.auth_aadhaar_number} onChange={handleInputChange} className="w-full bg-[#020817] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-secondary" required />
+                    <input 
+                      type="text" 
+                      name="auth_aadhaar_number" 
+                      value={formData.auth_aadhaar_number} 
+                      onChange={handleInputChange} 
+                      disabled={aadhaarVerified}
+                      className="w-full bg-[#0a1128] border border-gray-800 rounded-lg px-4 py-3 text-white focus:border-secondary disabled:opacity-50" 
+                      required 
+                    />
+                    
+                    {aadhaarError && <p className="text-red-500 text-sm mt-2">{aadhaarError}</p>}
+                    {aadhaarMessage && <p className="text-secondary text-sm mt-2">{aadhaarMessage}</p>}
+                    
+                    <div className="mt-4">
+                      {aadhaarVerified ? (
+                        <div className="flex items-center text-green-500 font-bold">
+                          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Aadhaar Verified
+                        </div>
+                      ) : (
+                        !aadhaarReferenceId ? (
+                          <button type="button" onClick={handleGenerateOtp} disabled={verifyingAadhaar} className="px-4 py-2 bg-secondary text-[#020817] font-bold rounded-lg disabled:opacity-50">
+                            {verifyingAadhaar ? 'Generating...' : 'Generate OTP'}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <input type="text" placeholder="6-digit OTP" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} className="bg-[#0a1128] border border-gray-800 rounded-lg px-4 py-2 text-white focus:border-secondary w-32 tracking-widest text-center" />
+                            <button type="button" onClick={handleVerifyOtp} disabled={verifyingAadhaar || otp.length !== 6} className="px-4 py-2 bg-secondary text-[#020817] font-bold rounded-lg disabled:opacity-50">
+                              {verifyingAadhaar ? 'Verifying...' : 'Verify OTP'}
+                            </button>
+                            {aadhaarError && <button type="button" onClick={handleGenerateOtp} className="text-xs text-blue-400 hover:underline">Resend</button>}
+                          </div>
+                        )
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -232,72 +336,17 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
 
             <div className="mt-8 flex justify-between">
               <button onClick={prevStep} className="px-6 py-3 border border-gray-700 text-white rounded-xl hover:bg-gray-800">Back</button>
-              <button onClick={nextStep} className="px-6 py-3 bg-secondary text-white rounded-xl font-bold">Continue</button>
+              <button onClick={nextStep} disabled={!aadhaarVerified} className="px-6 py-3 bg-secondary text-white rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed">Continue</button>
             </div>
           </motion.div>
         )}
 
-        {/* STEP 3: Documents */}
+        {/* STEP 3: Submit (Declarations Only) */}
         {step === 3 && (
           <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <h3 className="text-xl font-semibold text-white mb-6">Document Uploads</h3>
             
             <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                
-                {customerType === 'company' && (
-                  <>
-                    <FileUpload 
-                      label="GST Certificate" 
-                      name="gst_cert" 
-                      accept=".pdf,.jpg,.jpeg,.png" 
-                      description="PDF, JPG, or PNG (Max 5MB)" 
-                      isRequired={true} 
-                      currentFile={files.gst_cert} 
-                      onChange={(name, file) => setFiles(f => ({ ...f, [name]: file }))} 
-                    />
-                    <FileUpload 
-                      label="PAN Card Copy" 
-                      name="pan_card" 
-                      accept=".pdf,.jpg,.jpeg,.png" 
-                      description="PDF, JPG, or PNG (Max 5MB)" 
-                      isRequired={true} 
-                      currentFile={files.pan_card} 
-                      onChange={(name, file) => setFiles(f => ({ ...f, [name]: file }))} 
-                    />
-                    <FileUpload 
-                      label="Company Registration" 
-                      name="company_reg" 
-                      accept=".pdf,.jpg,.jpeg,.png" 
-                      description="PDF, JPG, or PNG (Max 5MB) - Optional" 
-                      isRequired={false} 
-                      currentFile={files.company_reg} 
-                      onChange={(name, file) => setFiles(f => ({ ...f, [name]: file }))} 
-                    />
-                  </>
-                )}
 
-                <FileUpload 
-                  label={customerType === 'company' ? 'Auth Person Aadhaar Front' : 'Aadhaar Front'} 
-                  name="aadhaar_front" 
-                  accept=".jpg,.jpeg,.png" 
-                  description="JPG or PNG (Max 5MB)" 
-                  isRequired={true} 
-                  currentFile={files.aadhaar_front} 
-                  onChange={(name, file) => setFiles(f => ({ ...f, [name]: file }))} 
-                />
-                
-                <FileUpload 
-                  label={customerType === 'company' ? 'Auth Person Aadhaar Back' : 'Aadhaar Back'} 
-                  name="aadhaar_back" 
-                  accept=".jpg,.jpeg,.png" 
-                  description="JPG or PNG (Max 5MB)" 
-                  isRequired={true} 
-                  currentFile={files.aadhaar_back} 
-                  onChange={(name, file) => setFiles(f => ({ ...f, [name]: file }))} 
-                />
-
-              </div>
 
               {/* Compliance Declarations */}
               <div className="bg-[#020817] border border-gray-800 rounded-2xl p-6 mb-8">

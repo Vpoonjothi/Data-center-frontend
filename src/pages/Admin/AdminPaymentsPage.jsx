@@ -64,7 +64,7 @@ const AdminPaymentsPage = () => {
                         <div className="text-xs text-blue-400 font-mono">Q: {payment.quote?.quote_number || 'N/A'}</div>
                       </td>
                       <td className="py-4 px-6">
-                        <div className="font-bold text-white">₹{parseFloat(payment.amount).toLocaleString()}</div>
+                        <div className="font-bold text-white">₹{parseFloat(payment.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                       </td>
                       <td className="py-4 px-6 font-mono text-sm text-blue-300">
                         {payment.transaction_reference}

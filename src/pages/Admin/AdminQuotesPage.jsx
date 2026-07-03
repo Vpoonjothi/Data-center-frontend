@@ -54,6 +54,7 @@ const AdminQuotesPage = () => {
               <option value="quoted">Quoted</option>
               <option value="verification_pending">Verification Pending</option>
               <option value="verified">Verified</option>
+              <option value="processing">Payment Processing</option>
               <option value="paid">Paid</option>
               <option value="active">Active</option>
               <option value="rejected">Rejected</option>
@@ -103,7 +104,7 @@ const AdminQuotesPage = () => {
                       {quote.duration_value && quote.duration_unit ? `${quote.duration_value} ${quote.duration_unit}` : '1 Month'}
                     </td>
                     <td className="px-6 py-4 font-medium text-secondary">
-                      ₹{parseFloat(quote.grand_total || quote.monthly_price || 0).toLocaleString()}
+                      ₹{parseFloat(quote.grand_total || quote.monthly_price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-400">
                       {new Date(quote.createdAt).toLocaleDateString()}
@@ -114,6 +115,7 @@ const AdminQuotesPage = () => {
                         quote.status === 'quoted' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 
                         quote.status === 'verification_pending' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 
                         quote.status === 'verified' ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20' : 
+                        quote.status === 'processing' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
                         quote.status === 'paid' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
                         quote.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                         quote.status === 'rejected' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :

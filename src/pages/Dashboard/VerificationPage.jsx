@@ -13,7 +13,6 @@ const VerificationPage = () => {
   
   const [kycData, setKycData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [verifyingAadhaar, setVerifyingAadhaar] = useState(false);
   const [verifyingPan, setVerifyingPan] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,29 +34,14 @@ const VerificationPage = () => {
     }
   };
 
-  const handleAadhaarVerify = async () => {
-    try {
-      setVerifyingAadhaar(true);
-      // Simulate real API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const res = await startAadhaarVerification(quoteId, declarations.consent);
-      setKycData(res.data);
-    } catch (err) {
-      setError('Aadhaar verification failed.');
-    } finally {
-      setVerifyingAadhaar(false);
-    }
-  };
-
   const handlePanVerify = async () => {
     try {
       setVerifyingPan(true);
-      // Simulate real API delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const res = await startPanVerification(quoteId, declarations.consent);
+      setError('');
+      const res = await startPanVerification(quoteId, true);
       setKycData(res.data);
     } catch (err) {
-      setError('PAN verification failed.');
+      setError(err.response?.data?.message || 'PAN verification failed.');
     } finally {
       setVerifyingPan(false);
     }
@@ -257,6 +241,28 @@ const VerificationPage = () => {
             {/* KYC Wizard or Status */}
             {overall_status === 'pending' ? (
               <KycWizard quote={quote} onComplete={fetchKycData} initialData={user} />
+            ) : overall_status === 'under_review' && pan_status === 'pending' ? (
+              <div className="bg-[#0a1128] border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)] rounded-2xl p-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">PAN Verification</h3>
+                <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                  Aadhaar verified successfully! Now verify your PAN Card to complete KYC.
+                </p>
+                
+                <button 
+                  onClick={handlePanVerify} 
+                  disabled={verifyingPan} 
+                  className="px-8 py-3 bg-yellow-500 text-[#020817] rounded-xl font-bold shadow-lg shadow-yellow-500/20 flex items-center gap-2 mx-auto disabled:opacity-50"
+                >
+                  {verifyingPan ? (
+                    <div className="w-5 h-5 border-2 border-[#020817] border-t-transparent rounded-full animate-spin"></div>
+                  ) : 'Verify PAN'}
+                </button>
+              </div>
             ) : overall_status === 'under_review' || overall_status === 'rejected' || overall_status === 'failed' || overall_status === 'partially_verified' ? (
               <div className="space-y-6">
                 <div className={`border rounded-2xl p-8 text-center ${overall_status === 'rejected' || overall_status === 'failed' ? 'bg-red-900/10 border-red-900/50' : 'bg-[#0a1128] border-yellow-500/50'}`}>
@@ -278,9 +284,6 @@ const VerificationPage = () => {
                       : 'Your documents have been submitted and are currently being reviewed by our compliance team. This usually takes 1-2 business hours.'}
                   </p>
                 </div>
-
-                {/* Always show the document center if not pending/verified so user can see what's happening */}
-                <KycDocumentCenter kycData={kycData} onDocumentReplaced={fetchKycData} />
               </div>
             ) : null}
 

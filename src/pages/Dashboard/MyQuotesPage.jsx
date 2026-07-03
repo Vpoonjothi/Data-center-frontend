@@ -122,7 +122,7 @@ const MyQuotesPage = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Monthly Subscription</p>
-                      <p className="text-sm text-slate-300">₹{parseFloat(quote.monthly_price).toLocaleString()}</p>
+                      <p className="text-sm text-slate-300">₹{parseFloat(quote.monthly_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       {renderStatusBadge(quote.status)}
@@ -175,7 +175,7 @@ const MyQuotesPage = () => {
                           <div className="space-y-3">
                             <div className="flex justify-between">
                               <span className="text-sm text-slate-500">Monthly Subscription</span>
-                              <span className="text-sm text-slate-300">₹{parseFloat(quote.monthly_price).toLocaleString()}</span>
+                              <span className="text-sm text-slate-300">₹{parseFloat(quote.monthly_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-sm text-slate-500">Subscription Plan</span>
@@ -187,15 +187,15 @@ const MyQuotesPage = () => {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-sm text-slate-500">Contract Value</span>
-                              <span className="text-sm text-slate-300">₹{parseFloat(quote.subtotal_price || quote.monthly_price).toLocaleString()}</span>
+                              <span className="text-sm text-slate-300">₹{parseFloat(quote.subtotal_price || quote.monthly_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-sm text-slate-500">GST (18%)</span>
-                              <span className="text-sm text-slate-300">₹{parseFloat(quote.gst_amount || 0).toLocaleString()}</span>
+                              <span className="text-sm text-slate-300">₹{parseFloat(quote.gst_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>
                             <div className="flex justify-between border-t border-slate-800 pt-3">
-                              <span className="text-sm font-bold text-white">Total Payable</span>
-                              <span className="text-sm font-bold text-secondary">₹{parseFloat(quote.grand_total || quote.monthly_price).toLocaleString()}</span>
+                              <span className="text-sm font-bold text-white">Final Quotation Amount</span>
+                              <span className="text-sm font-bold text-secondary">₹{parseFloat(quote.grand_total || quote.monthly_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>
                             <div className="flex justify-between items-center mt-2 p-2 bg-slate-800/50 rounded-lg">
                               <span className="text-xs text-slate-400">Renewal Type</span>

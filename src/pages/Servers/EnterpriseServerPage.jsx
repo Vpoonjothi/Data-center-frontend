@@ -254,7 +254,7 @@ const EnterpriseServerPage = () => {
               {renderControlGroup({ label: "Storage (SSD)", value: ssd, unit: "GB", type: "SSD" })}
             </div>
 
-            <div className="bg-[#0a1128] border border-gray-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative" style={{ zIndex: 100 }}>
+            <div className="bg-[#0a1128] border border-gray-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative z-20">
               <h2 className="text-2xl font-bold text-white mb-6 border-b border-gray-800 pb-4">Software & Network</h2>
               
               <div className="space-y-6">
@@ -388,7 +388,7 @@ const EnterpriseServerPage = () => {
             </div>
 
             {/* Promotional Offers Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative" style={{ zIndex: 10 }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
               {offers.map(offer => {
                 const isApplied = appliedOffer?.name === offer.name;
                 const isMet = vCPU >= offer.min_vcpu && ram >= offer.min_ram;

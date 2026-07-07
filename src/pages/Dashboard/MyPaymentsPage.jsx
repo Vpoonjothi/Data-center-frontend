@@ -61,6 +61,7 @@ const MyPaymentsPage = () => {
                     <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Amount</th>
                     <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Transaction Ref</th>
                     <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="py-4 px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider text-right">Invoice</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/50">
@@ -80,12 +81,27 @@ const MyPaymentsPage = () => {
                       </td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                          payment.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                          payment.status === 'Failed' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                          payment.status === 'Verified' || payment.status === 'Paid' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          payment.status === 'Failed' || payment.status === 'Rejected' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
                           'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
                         }`}>
                           {payment.status.toUpperCase()}
                         </span>
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        {payment.status === 'Verified' && payment.payment_screenshot && payment.payment_screenshot.endsWith('.pdf') && (
+                          <a 
+                            href={`http://${window.location.hostname}:5000${payment.payment_screenshot}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs font-semibold transition-colors border border-blue-500/20"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Invoice
+                          </a>
+                        )}
                       </td>
                     </tr>
                   ))}

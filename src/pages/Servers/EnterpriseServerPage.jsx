@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ENTERPRISE_PRICING } from '../../constants/pricingData';
-import { getOffers } from '../../services/api';
+import { getOffers, submitEnquiry } from '../../services/api';
 import ContactCTASection from '../../components/sections/ContactCTASection';
 import { AuthContext } from '../../context/AuthContext';
 import { ContentContext } from '../../context/ContentContext';
-import { LoginRequiredModal, OrderSummaryModal, SuccessModal } from '../../components/calculator/OrderModals';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
 
 const EnterpriseServerPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useContext(AuthContext);
   const { getContent } = useContext(ContentContext);
 
@@ -39,11 +39,12 @@ const EnterpriseServerPage = () => {
   const [backup, setBackup] = useState(false);
   const [isOsDropdownOpen, setIsOsDropdownOpen] = useState(false);
 
-  // Modals State
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [createdQuote, setCreatedQuote] = useState(null);
+  const [message, setMessage] = useState('');
+  const [quantity, setQuantity] = useState(1);
+
+  // Submission State
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Billing Duration State
   const [billingDuration, setBillingDuration] = useState({
@@ -115,18 +116,59 @@ const EnterpriseServerPage = () => {
     billingDuration.duration_unit
   );
 
-  const handleAction = () => {
+  const handleSubmit = async (requestAction) => {
     if (!user) {
-      setShowLoginModal(true);
-    } else {
-      setShowSummaryModal(true);
+      navigate('/login', { state: { from: location.pathname } });
+      return;
     }
-  };
 
-  const handleSuccess = (quoteData) => {
-    setShowSummaryModal(false);
-    setCreatedQuote(quoteData);
-    setShowSuccessModal(true);
+    try {
+      setIsSubmitting(true);
+      
+      const configJson = {
+        vcpu: vCPU,
+        ram: ram,
+        storage: ssd,
+        os: os.name,
+        bandwidth: bandwidth.name,
+        backup: backup,
+        quantity: quantity,
+        discount: appliedOffer ? appliedOffer.name : 'None',
+        duration_type: billingDuration.duration_type,
+        duration_value: billingDuration.duration_value,
+        duration_unit: billingDuration.duration_unit,
+        monthly_price: `₹${monthlyPrice.toLocaleString()}`,
+        subtotal_price: `₹${durationSubtotal.toLocaleString()}`,
+        gst_amount: `₹${gstAmount.toLocaleString()}`,
+        grand_total: `₹${grandTotal.toLocaleString()}`
+      };
+
+      const enquiryData = {
+        name: user.name,
+        email: user.email,
+        company: user?.company || '',
+        phone: user?.phone || '',
+        type: 'enterprise_server',
+        message: message,
+        request_action: requestAction,
+        configuration_json: configJson
+      };
+
+      await submitEnquiry(enquiryData);
+      
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+      
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setMessage('');
+        setQuantity(1);
+      }, 5000);
+    } catch (err) {
+      console.error('Failed to submit order:', err);
+      setIsSubmitting(false);
+      alert('Failed to submit your request. Please try again later.');
+    }
   };
 
   // Stepper Handlers
@@ -565,21 +607,76 @@ const EnterpriseServerPage = () => {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <button 
-                  onClick={handleAction} 
-                  className="w-full py-4 px-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold transition-colors shadow-lg shadow-secondary/25 flex items-center justify-center gap-2"
-                >
-                  Order Now
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                </button>
-                <button 
-                  onClick={handleAction} 
-                  className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors border border-slate-700"
-                >
-                  Request Quote
-                </button>
-              </div>
+              {isSubmitted ? (
+                <div className="text-center py-8 bg-emerald-900/20 border border-emerald-900/50 rounded-xl mt-6">
+                  <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Request Received</h3>
+                  <p className="text-emerald-200/70 text-sm">Thank you! Our sales team will be in touch shortly.</p>
+                </div>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {!user ? (
+                    <div className="text-center p-6 bg-slate-900/50 border border-gray-800 rounded-xl">
+                      <h3 className="text-lg font-bold text-white mb-2">Login Required</h3>
+                      <p className="text-gray-400 text-sm mb-4">Please log in to your account to request a quote or place an order.</p>
+                      <button 
+                        onClick={() => navigate('/login', { state: { from: location.pathname } })}
+                        className="px-6 py-2.5 bg-secondary hover:bg-accent text-white rounded-lg font-bold transition-colors w-full"
+                      >
+                        Log In
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-emerald-100 flex flex-col gap-1">
+                        <p className="text-sm">Requesting as: <strong className="text-white">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
+                        <p className="text-xs text-gray-500 mt-1 italic">Your account information will be automatically used for this request.</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Quantity</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          value={quantity}
+                          onChange={(e) => setQuantity(e.target.value)}
+                          className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-secondary transition-colors"
+                          placeholder="1"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Additional Requirements / Notes</label>
+                        <textarea 
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-secondary transition-colors h-24 resize-none"
+                          placeholder="Tell us about your requirements..."
+                        ></textarea>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button 
+                          onClick={() => handleSubmit('REQUEST_QUOTE')}
+                          disabled={isSubmitting}
+                          className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors border border-slate-700 disabled:opacity-50 text-sm"
+                        >
+                          {isSubmitting ? 'Processing...' : 'Request Quote'}
+                        </button>
+                        <button 
+                          onClick={() => handleSubmit('DIRECT_ORDER')}
+                          disabled={isSubmitting}
+                          className="flex-1 py-3 px-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold transition-colors shadow-lg shadow-secondary/25 disabled:opacity-50 text-sm"
+                        >
+                          {isSubmitting ? 'Processing...' : 'Order Now'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -589,10 +686,6 @@ const EnterpriseServerPage = () => {
       {/* Ready to Deploy CTA */}
       <ContactCTASection />
 
-      {/* Modals */}
-      <LoginRequiredModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
-      <OrderSummaryModal isOpen={showSummaryModal} onClose={() => setShowSummaryModal(false)} config={currentConfig} user={user} onSuccess={handleSuccess} />
-      <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} quote={createdQuote} />
     </div>
   );
 };

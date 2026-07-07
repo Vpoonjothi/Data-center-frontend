@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,7 +11,21 @@ const api = axios.create({
 // Request interceptor for API calls
 api.interceptors.request.use(
   (config) => {
-    // You can inject JWT tokens here for future Customer Portal integration
+    // If an Authorization header is already provided (e.g., from an override), don't overwrite it
+    if (config.headers['Authorization']) {
+      return config;
+    }
+    
+    // Automatically use adminToken for /admin/ endpoints
+    if (config.url && config.url.includes('/admin/')) {
+      const adminToken = localStorage.getItem('adminToken');
+      if (adminToken) {
+        config.headers['Authorization'] = `Bearer ${adminToken}`;
+      }
+      return config;
+    }
+
+    // Default to customer token for all other endpoints
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
@@ -62,6 +76,16 @@ export const processPayment = async (quoteId, termsAccepted) => {
   return response.data;
 };
 
+export const createServiceRenewalOrder = async (serviceId) => {
+  const response = await api.post(`/payments/service/${serviceId}/razorpay/create-order`);
+  return response.data;
+};
+
+export const verifyServiceRenewalPayment = async (serviceId, paymentData) => {
+  const response = await api.post(`/payments/service/${serviceId}/razorpay/verify`, paymentData);
+  return response.data;
+};
+
 // --- SERVICES ---
 
 export const getMyServices = async () => {
@@ -97,8 +121,8 @@ export const getKycStatus = async (quoteId) => {
   return response.data;
 };
 
-export const startAadhaarVerification = async (quoteId, kycConsent, otp, aadhaarNumber) => {
-  const response = await api.post(`/kyc/aadhaar/start`, { quoteId, kycConsent, otp, aadhaarNumber });
+export const startAadhaarVerification = async (quoteId, kycConsent, otp, aadhaarNumber, customerDetails, customerType) => {
+  const response = await api.post(`/kyc/aadhaar/start`, { quoteId, kycConsent, otp, aadhaarNumber, customerDetails, customerType });
   return response.data;
 };
 

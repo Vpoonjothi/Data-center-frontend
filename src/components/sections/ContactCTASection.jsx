@@ -1,8 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const ContactCTASection = () => {
+  const location = useLocation();
+  const isConfiguratorPage = location.pathname === '/enterprise-servers' || location.pathname === '/ai-servers';
+
   return (
     <section className="py-20 bg-[#020617] relative overflow-hidden">
       <div className="absolute inset-0 bg-emerald-900/10 blur-[120px] pointer-events-none"></div>
@@ -22,9 +25,18 @@ const ContactCTASection = () => {
               Contact Sales
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </Link>
-            <Link to="/enterprise-servers" className="bg-[#0F172A] border border-[#1E293B] hover:border-gray-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center">
-              Configure Server
-            </Link>
+            {isConfiguratorPage ? (
+              <button 
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="bg-[#0F172A] border border-[#1E293B] hover:border-gray-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center"
+              >
+                Configure Server
+              </button>
+            ) : (
+              <Link to="/enterprise-servers" className="bg-[#0F172A] border border-[#1E293B] hover:border-gray-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors flex items-center justify-center">
+                Configure Server
+              </Link>
+            )}
           </div>
         </motion.div>
       </div>

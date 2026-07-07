@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/admin';
+const API_URL = `http://${window.location.hostname}:5000/api/admin`;
 
 const getConfig = () => {
   const token = localStorage.getItem('adminToken');
@@ -36,6 +36,16 @@ export const updateAdminPassword = async (currentPassword, newPassword) => {
   return response.data;
 };
 
+export const updateAdminProfile = async (profileData) => {
+  const response = await axios.put(`${API_URL}/auth/profile`, profileData, getConfig());
+  return response.data;
+};
+
+export const updateAdminNotifications = async (notificationsData) => {
+  const response = await axios.put(`${API_URL}/auth/notifications`, notificationsData, getConfig());
+  return response.data;
+};
+
 // Users
 export const getUsers = async () => {
   const response = await axios.get(`${API_URL}/users`, getConfig());
@@ -57,8 +67,29 @@ export const deleteUser = async (id) => {
   return response.data;
 };
 
+// Superadmin (Admin Management)
+export const getAdmins = async () => {
+  const response = await axios.get(`${API_URL}/admins`, getConfig());
+  return response.data;
+};
+
+export const createAdmin = async (adminData) => {
+  const response = await axios.post(`${API_URL}/admins`, adminData, getConfig());
+  return response.data;
+};
+
+export const deleteAdmin = async (id) => {
+  const response = await axios.delete(`${API_URL}/admins/${id}`, getConfig());
+  return response.data;
+};
+
+export const updateAdminAccount = async (id, adminData) => {
+  const response = await axios.put(`${API_URL}/admins/${id}`, adminData, getConfig());
+  return response.data;
+};
+
 // --- AI SERVERS ---
-const AI_SERVER_API = 'http://localhost:5000/api/ai-servers';
+const AI_SERVER_API = `http://${window.location.hostname}:5000/api/ai-servers`;
 
 export const getAdminAiServers = async () => {
   const response = await axios.get(`${AI_SERVER_API}/admin`, getConfig());
@@ -215,7 +246,23 @@ export const getAuditLogs = async () => {
 // Offers (Using absolute URL since the route is on /api/offers not /api/admin/offers)
 export const updateOffer = async (id, data) => {
   const token = localStorage.getItem('adminToken');
-  const response = await axios.put(`http://localhost:5000/api/offers/${id}`, data, {
+  const response = await axios.put(`http://${window.location.hostname}:5000/api/offers/${id}`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const createOffer = async (data) => {
+  const token = localStorage.getItem('adminToken');
+  const response = await axios.post(`http://${window.location.hostname}:5000/api/offers`, data, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+export const deleteOffer = async (id) => {
+  const token = localStorage.getItem('adminToken');
+  const response = await axios.delete(`http://${window.location.hostname}:5000/api/offers/${id}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -224,7 +271,7 @@ export const updateOffer = async (id, data) => {
 // Content CMS (Using absolute URL)
 export const createContentBlock = async (data) => {
   const token = localStorage.getItem('adminToken');
-  const response = await axios.post(`http://localhost:5000/api/content`, data, {
+  const response = await axios.post(`http://${window.location.hostname}:5000/api/content`, data, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -232,7 +279,7 @@ export const createContentBlock = async (data) => {
 
 export const updateContentBlock = async (id, data) => {
   const token = localStorage.getItem('adminToken');
-  const response = await axios.put(`http://localhost:5000/api/content/${id}`, data, {
+  const response = await axios.put(`http://${window.location.hostname}:5000/api/content/${id}`, data, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -240,8 +287,52 @@ export const updateContentBlock = async (id, data) => {
 
 export const deleteContentBlock = async (id) => {
   const token = localStorage.getItem('adminToken');
-  const response = await axios.delete(`http://localhost:5000/api/content/${id}`, {
+  const response = await axios.delete(`http://${window.location.hostname}:5000/api/content/${id}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
+  return response.data;
+};
+
+// Admin Notifications
+export const getAdminNotifications = async () => {
+  const response = await axios.get(`${API_URL}/notifications`, getConfig());
+  return response.data;
+};
+
+export const markAdminNotificationRead = async (id) => {
+  const response = await axios.put(`${API_URL}/notifications/${id}/read`, {}, getConfig());
+  return response.data;
+};
+
+export const markAllAdminNotificationsRead = async () => {
+  const response = await axios.put(`${API_URL}/notifications/read-all`, {}, getConfig());
+  return response.data;
+};
+
+export const clearAllAdminNotifications = async () => {
+  const response = await axios.delete(`${API_URL}/notifications/clear-all`, getConfig());
+  return response.data;
+};
+
+// Admin Dashboard
+export const getAdminDashboardStats = async () => {
+  const response = await axios.get(`${API_URL}/dashboard`, getConfig());
+  return response.data;
+};
+
+// Admin Settings
+export const getGlobalSettings = async () => {
+  const response = await axios.get(`${API_URL}/settings`, getConfig());
+  return response.data;
+};
+
+export const updateGlobalSettings = async (settings) => {
+  const response = await axios.put(`${API_URL}/settings`, { settings }, getConfig());
+  return response.data;
+};
+
+// Admin Services extension
+export const updateAdminServiceStatus = async (id, status) => {
+  const response = await axios.put(`${API_URL}/services/${id}/status`, { status }, getConfig());
   return response.data;
 };

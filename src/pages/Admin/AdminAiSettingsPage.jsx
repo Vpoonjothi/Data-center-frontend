@@ -277,9 +277,9 @@ const AdminAiSettingsPage = () => {
         ) : servers.length === 0 ? (
           <div className="text-gray-400">No servers found. Add one above!</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-400">
-              <thead className="text-xs text-gray-500 uppercase bg-[#020817] border-b border-gray-800">
+          <div className="overflow-x-auto md:overflow-visible">
+            <table className="w-full text-left text-sm text-gray-400 block md:table min-w-full md:min-w-full">
+              <thead className="text-xs text-gray-500 uppercase bg-[#020817] border-b border-gray-800 hidden md:table-header-group">
                 <tr>
                   <th className="px-4 py-3">Server Name</th>
                   <th className="px-4 py-3">GPU</th>
@@ -288,20 +288,30 @@ const AdminAiSettingsPage = () => {
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block md:table-row-group">
                 {servers.map(server => (
-                  <tr key={server.id} className="border-b border-gray-800/50 hover:bg-[#020817]/50">
-                    <td className="px-4 py-3 font-bold text-white">{server.name}</td>
-                    <td className="px-4 py-3">{server.gpu}</td>
-                    <td className="px-4 py-3">₹{server.monthly_price.toLocaleString()}</td>
-                    <td className="px-4 py-3">
+                  <tr key={server.id} className="block md:table-row border border-gray-800 md:border-b md:border-t-0 md:border-x-0 rounded-xl md:rounded-none mb-4 md:mb-0 p-4 md:p-0 hover:bg-[#020817]/50 relative">
+                    <td className="block md:table-cell px-2 md:px-4 py-2 md:py-3 font-bold text-white">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Server Name</span>
+                      {server.name}
+                    </td>
+                    <td className="block md:table-cell px-2 md:px-4 py-2 md:py-3">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">GPU</span>
+                      {server.gpu}
+                    </td>
+                    <td className="block md:table-cell px-2 md:px-4 py-2 md:py-3">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Price</span>
+                      ₹{server.monthly_price.toLocaleString()}
+                    </td>
+                    <td className="block md:table-cell px-2 md:px-4 py-2 md:py-3">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Status</span>
                       {server.is_active ? (
-                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium">Active</span>
+                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium inline-block">Active</span>
                       ) : (
-                        <span className="px-2 py-1 bg-gray-800 text-gray-400 rounded-full text-xs font-medium">Inactive</span>
+                        <span className="px-2 py-1 bg-gray-800 text-gray-400 rounded-full text-xs font-medium inline-block">Inactive</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right space-x-3">
+                    <td className="block md:table-cell px-2 md:px-4 py-3 md:py-3 md:text-right border-t border-gray-800 md:border-none mt-3 md:mt-0 space-x-3 text-right">
                       <button 
                         onClick={() => handleEdit(server)}
                         className="text-blue-400 hover:text-blue-300 font-medium"

@@ -68,7 +68,7 @@ const KycWizard = ({ quote, onComplete, initialData = {} }) => {
         setVerifyingAadhaar(false);
         return;
       }
-      const res = await startAadhaarVerification(quote.id, true, null, targetAadhaar);
+      const res = await startAadhaarVerification(quote.id, true, null, targetAadhaar, formData, customerType);
       if (res.data?.aadhaar_reference_id) {
          setAadhaarReferenceId(res.data.aadhaar_reference_id);
          setAadhaarMessage('OTP has been sent to your Aadhaar linked mobile number.');

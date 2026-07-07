@@ -19,9 +19,7 @@ const ProfilePage = () => {
     // Business
     company: '', business_type: '', gst_number: '', website: '', industry: '',
     // Address
-    address_line1: '', address_line2: '', city: '', state: '', country: '', pin_code: '',
-    // Service
-    service_requirement_type: '', expected_deployment_date: '', monthly_budget_range: ''
+    address_line1: '', address_line2: '', city: '', state: '', country: '', pin_code: ''
   });
 
   useEffect(() => {
@@ -42,10 +40,7 @@ const ProfilePage = () => {
         city: user.city || '',
         state: user.state || '',
         country: user.country || '',
-        pin_code: user.pin_code || '',
-        service_requirement_type: user.service_requirement_type || '',
-        expected_deployment_date: user.expected_deployment_date || '',
-        monthly_budget_range: user.monthly_budget_range || ''
+        pin_code: user.pin_code || ''
       });
     }
   }, [user]);
@@ -71,6 +66,7 @@ const ProfilePage = () => {
   const tabs = [
     { id: 'personal', label: 'Personal Information' },
     { id: 'business', label: 'Business Information' },
+    { id: 'address', label: 'Address Details' },
     { id: 'documents', label: 'Compliance Documents' },
     { id: 'notifications', label: 'Notifications' }
   ];
@@ -176,12 +172,40 @@ const ProfilePage = () => {
                         <input type="text" name="gst_number" value={formData.gst_number} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" placeholder="e.g. 22AAAAA0000A1Z5" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-2">Website</label>
-                        <input type="url" name="website" value={formData.website} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" placeholder="https://" />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-slate-400 mb-2">Industry</label>
                         <input type="text" name="industry" value={formData.industry} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" placeholder="e.g. IT, Finance, Healthcare" />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'address' && (
+                  <>
+                    <h3 className="text-xl font-bold text-white mb-6 border-b border-slate-800 pb-4">Address Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-400 mb-2">Address Line 1</label>
+                        <input type="text" name="address_line1" value={formData.address_line1} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-400 mb-2">Address Line 2</label>
+                        <input type="text" name="address_line2" value={formData.address_line2} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">City</label>
+                        <input type="text" name="city" value={formData.city} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">State</label>
+                        <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">Country</label>
+                        <input type="text" name="country" value={formData.country} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-400 mb-2">PIN / ZIP Code</label>
+                        <input type="text" name="pin_code" value={formData.pin_code} onChange={handleChange} className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-secondary transition-colors" />
                       </div>
                     </div>
                   </>
@@ -190,7 +214,7 @@ const ProfilePage = () => {
                 {activeTab === 'documents' && <DocumentCenterTab />}
                 {activeTab === 'notifications' && <NotificationsTab />}
 
-                {['personal', 'business'].includes(activeTab) && (
+                {['personal', 'business', 'address'].includes(activeTab) && (
                   <div className="pt-6 border-t border-slate-800 mt-8 flex justify-end">
                     <button 
                       onClick={handleSave} 

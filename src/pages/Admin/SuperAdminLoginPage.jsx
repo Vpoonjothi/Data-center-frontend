@@ -6,7 +6,7 @@ import { AdminAuthContext } from '../../context/AdminAuthContext';
 import { COMPANY_INFO } from '../../constants/companyInfo';
 import PWAInstallButton from '../../components/common/PWAInstallButton';
 
-const AdminLoginPage = () => {
+const SuperAdminLoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -28,12 +28,12 @@ const AdminLoginPage = () => {
     try {
       const res = await loginAdmin(email, password);
       if (res.success) {
-        if (res.data.role === 'superadmin') {
-          setError('Access denied. Please use the Superadmin portal.');
+        if (res.data.role !== 'superadmin') {
+          setError('Access denied. Superadmin only.');
           return;
         }
         login(res.data);
-        navigate('/admin');
+        navigate('/admin/superadmin');
       } else {
         setError(res.message || 'Login failed');
       }
@@ -60,8 +60,8 @@ const AdminLoginPage = () => {
               <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Admin Portal</h2>
-          <p className="text-sm text-gray-400">Sign in to manage {COMPANY_INFO.name}</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Superadmin Portal</h2>
+          <p className="text-sm text-gray-400">Sign in to manage {COMPANY_INFO.name} as Superadmin</p>
         </div>
 
         {error && (
@@ -136,4 +136,4 @@ const AdminLoginPage = () => {
   );
 };
 
-export default AdminLoginPage;
+export default SuperAdminLoginPage;

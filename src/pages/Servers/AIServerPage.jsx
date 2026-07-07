@@ -2,8 +2,9 @@
 import React, { useRef, useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { ContentContext } from '../../context/ContentContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { submitEnquiry, getAiServers } from '../../services/api';
+import { AuthContext } from '../../context/AuthContext';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
 
@@ -27,6 +28,9 @@ const SpecIcon = ({ icon }) => {
 };
 
 const AIServerPage = () => {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const location = useLocation();
   const formRef = useRef(null);
   
   const [servers, setServers] = useState([]);
@@ -51,11 +55,8 @@ const AIServerPage = () => {
   }, []);
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    message: ''
+    message: '',
+    quantity: 1
   });
 
   // Billing Duration State
@@ -83,7 +84,7 @@ const AIServerPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, requestAction) => {
     e.preventDefault();
     setIsSubmitting(true);
     
@@ -94,6 +95,7 @@ const AIServerPage = () => {
         ram: activeServer.ram,
         storage: activeServer.storage,
         gpu: activeServer.gpu,
+        quantity: formData.quantity,
         duration_type: billingDuration.duration_type,
         duration_value: billingDuration.duration_value,
         duration_unit: billingDuration.duration_unit,
@@ -104,8 +106,13 @@ const AIServerPage = () => {
       };
 
       const enquiryData = {
+        name: user.name,
+        email: user.email,
+        company: user?.company || '',
+        phone: user?.phone || '',
         type: 'ai_server',
-        ...formData,
+        message: formData.message,
+        request_action: requestAction,
         configuration_json: configJson
       };
       
@@ -117,7 +124,7 @@ const AIServerPage = () => {
       // Reset form after 5 seconds
       setTimeout(() => {
         setIsSubmitted(false);
-        setFormData({ name: '', email: '', phone: '', company: '', message: '' });
+        setFormData({ message: '', quantity: 1 });
       }, 5000);
     } catch (error) {
       console.error('Failed to submit quote request:', error);
@@ -174,7 +181,13 @@ const AIServerPage = () => {
             className="flex flex-col sm:flex-row justify-center gap-4"
           >
             <button 
-              onClick={scrollToForm}
+              onClick={() => {
+                if (!user) {
+                  navigate('/login', { state: { from: location.pathname } });
+                  return;
+                }
+                scrollToForm();
+              }}
               className="px-8 py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25 flex items-center justify-center gap-2"
             >
               Request Quote
@@ -270,6 +283,10 @@ const AIServerPage = () => {
                   
                   <button 
                     onClick={() => {
+                      if (!user) {
+                        navigate('/login', { state: { from: location.pathname } });
+                        return;
+                      }
                       setActiveServer(server);
                       scrollToForm();
                     }}
@@ -321,7 +338,18 @@ const AIServerPage = () => {
               <p className="text-gray-400">Fill out the form below and our sales team will contact you shortly.</p>
             </div>
 
-            {isSubmitted ? (
+            {!user ? (
+              <div className="text-center py-12">
+                <h3 className="text-xl font-bold text-white mb-4">Login Required</h3>
+                <p className="text-gray-400 mb-6">Please log in to your account to request a quote or place an order.</p>
+                <button 
+                  onClick={() => navigate('/login', { state: { from: location.pathname } })}
+                  className="px-8 py-3 bg-secondary hover:bg-accent text-white rounded-lg font-bold transition-colors"
+                >
+                  Log In
+                </button>
+              </div>
+            ) : isSubmitted ? (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -334,62 +362,34 @@ const AIServerPage = () => {
                 <p className="text-gray-400">Thank you for your interest. Our sales team will be in touch soon.</p>
               </motion.div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form className="space-y-6">
+                
+                <div className="bg-emerald-900/20 border border-emerald-900/50 p-6 rounded-xl text-emerald-100 flex flex-col gap-2">
+                  <p className="text-sm">Requesting as: <strong className="text-white text-base">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
+                  <p className="text-sm text-emerald-300/70">{user.email} | {user.phone_number}</p>
+                  <p className="text-xs text-gray-500 mt-2 italic">Your account information will be automatically used for this request.</p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Full Name</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Quantity</label>
                     <input 
-                      type="text" 
-                      name="name"
+                      type="number" 
+                      name="quantity"
+                      min="1"
                       required
-                      value={formData.name}
+                      value={formData.quantity}
                       onChange={handleInputChange}
                       className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-secondary transition-colors"
-                      placeholder="John Doe"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Company Name</label>
-                    <input 
-                      type="text" 
-                      name="company"
-                      required
-                      value={formData.company}
-                      onChange={handleInputChange}
-                      className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-secondary transition-colors"
-                      placeholder="Acme Corp"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Email</label>
-                    <input 
-                      type="email" 
-                      name="email"
-                      required
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-secondary transition-colors"
-                      placeholder="john@company.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Phone Number</label>
-                    <input 
-                      type="tel" 
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-secondary transition-colors"
-                      placeholder="+1 (555) 000-0000"
+                      placeholder="1"
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">Message</label>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">Additional Requirements / Notes</label>
                   <textarea 
                     name="message"
-                    required
                     value={formData.message}
                     onChange={handleInputChange}
                     className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-secondary transition-colors h-32 resize-none"
@@ -397,21 +397,24 @@ const AIServerPage = () => {
                   ></textarea>
                 </div>
 
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25 flex items-center justify-center disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing Request...
-                    </span>
-                  ) : 'Submit Request'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                  <button 
+                    type="button" 
+                    onClick={(e) => handleSubmit(e, 'REQUEST_QUOTE')}
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg transition-colors border border-slate-700 disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Processing...' : 'Request Quote'}
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={(e) => handleSubmit(e, 'DIRECT_ORDER')}
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25 disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Processing...' : 'Order Now'}
+                  </button>
+                </div>
               </form>
             )}
             
@@ -430,7 +433,13 @@ const AIServerPage = () => {
               Contact Sales
             </Link>
             <button 
-              onClick={scrollToForm} 
+              onClick={() => {
+                if (!user) {
+                  navigate('/login', { state: { from: location.pathname } });
+                  return;
+                }
+                scrollToForm();
+              }} 
               className="px-8 py-3 bg-emerald-800 text-white border border-emerald-700 hover:bg-emerald-700 rounded-lg font-bold transition-colors"
             >
               Get Quote

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const infrastructureFeatures = [
@@ -162,6 +162,15 @@ const workflowSteps = [
 
 const InfrastructureSection = () => {
   const [activeFeature, setActiveFeature] = useState(infrastructureFeatures[0]);
+  const mainCardRef = useRef(null);
+
+  const handleFeatureClick = (feature) => {
+    setActiveFeature(feature);
+    if (window.innerWidth < 1024 && mainCardRef.current) {
+      // Scroll to the main image on mobile devices
+      mainCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   return (
     <section className="py-24 bg-transparent relative overflow-hidden border-t border-gray-800">
@@ -196,7 +205,7 @@ const InfrastructureSection = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mb-24">
           
           {/* Left Panel: Dynamic Display */}
-          <div className="lg:col-span-5 h-[500px]">
+          <div className="lg:col-span-5 h-[500px]" ref={mainCardRef}>
             <div className="h-full bg-gradient-to-br from-[#0a1128] to-[#020817] rounded-3xl border border-gray-800 shadow-2xl relative overflow-hidden group">
               
               <AnimatePresence mode="wait">
@@ -237,7 +246,7 @@ const InfrastructureSection = () => {
               return (
                 <button
                   key={feature.id}
-                  onClick={() => setActiveFeature(feature)}
+                  onClick={() => handleFeatureClick(feature)}
                   className={`text-left p-5 rounded-2xl border transition-all duration-300 group relative overflow-hidden flex flex-col justify-end min-h-[160px]
                     ${isActive 
                       ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] -translate-y-1 ring-2 ring-emerald-500/50' 

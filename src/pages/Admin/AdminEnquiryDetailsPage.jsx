@@ -5,34 +5,35 @@ import {
   getEnquiryById, 
   updateEnquiryStatus, 
   addEnquiryResponse, 
-  addEnquiryNote,
-  deleteEnquiryNote,
-  generateQuoteFromEnquiry
+  generateQuoteFromEnquiry,
+  addEnquiryNote
 } from '../../services/adminApi';
+import BillingSummary from '../../components/common/BillingSummary';
+import { calculateQuotePricing } from '../../utils/quotePricing';
 
 const AdminEnquiryDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [enquiry, setEnquiry] = useState(null);
-  const [userStats, setUserStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Response Form State
-  const [responseSubject, setResponseSubject] = useState('');
   const [responseText, setResponseText] = useState('');
+  const [notifyEmail, setNotifyEmail] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [markAsClosed, setMarkAsClosed] = useState(false);
 
   // Internal Notes State
-  const [newNote, setNewNote] = useState('');
-  const [submittingNote, setSubmittingNote] = useState(false);
+  const [internalNote, setInternalNote] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
 
   // Quote Generation State
-  const [quoteAmount, setQuoteAmount] = useState('');
-  const [billingCycle, setBillingCycle] = useState('Monthly');
-  const [validity, setValidity] = useState('15 Days');
+  const [discount, setDiscount] = useState(0);
   const [quoteNotes, setQuoteNotes] = useState('');
   const [generatingQuote, setGeneratingQuote] = useState(false);
+
+  // Derived Pricing State
+  const [baseMonthlyPrice, setBaseMonthlyPrice] = useState(0);
+  const [quantity, setQuantity] = useState(1);
 
   // Success/Error Messages
   const [notification, setNotification] = useState(null);
@@ -42,7 +43,6 @@ const AdminEnquiryDetailsPage = () => {
       const res = await getEnquiryById(id);
       if (res.success) {
         setEnquiry(res.data);
-        setUserStats(res.data.userStats || null);
       } else {
         navigate('/admin/enquiries');
       }
@@ -59,21 +59,24 @@ const AdminEnquiryDetailsPage = () => {
   }, [id, navigate]);
 
   useEffect(() => {
-    if (enquiry?.configuration_json?.estimated_monthly_cost) {
-      const costStr = enquiry.configuration_json.estimated_monthly_cost;
-      const numericCost = parseFloat(costStr.replace(/[^0-9.]/g, ''));
+    if (enquiry?.configuration_json) {
+      const costStr = enquiry.configuration_json.estimated_monthly_cost || enquiry.configuration_json.monthly_price || '0';
+      const numericCost = parseFloat(String(costStr).replace(/[^0-9.]/g, ''));
       if (!isNaN(numericCost)) {
-        setQuoteAmount(numericCost.toString());
+        setBaseMonthlyPrice(numericCost);
+      }
+      
+      const qtyStr = enquiry.configuration_json.quantity || '1';
+      const numericQty = parseInt(qtyStr, 10);
+      if (!isNaN(numericQty) && numericQty > 0) {
+        setQuantity(numericQty);
       }
     }
   }, [enquiry]);
 
-  const getConfigTitle = () => {
-    if (enquiry?.type === 'ai_server') return 'AI Configuration';
-    if (enquiry?.type === 'enterprise_server') return 'Enterprise Configuration';
-    if (enquiry?.type === 'colocation') return 'Colocation Configuration';
-    return 'Server Configuration';
-  };
+  // Derived Pricing Calculations
+  const monthlyPrice = baseMonthlyPrice;
+  const pricing = calculateQuotePricing(monthlyPrice, quantity, discount, 18);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -95,15 +98,15 @@ const AdminEnquiryDetailsPage = () => {
 
   const handleResponseSubmit = async (e) => {
     e.preventDefault();
-    if (!responseSubject || !responseText) return;
+    if (!responseText) return;
     
     setSubmitting(true);
     try {
-      const res = await addEnquiryResponse(id, responseSubject, responseText, markAsClosed);
+      // Auto-generate subject for the customer email based on Enquiry Type
+      const subject = `Update on your ${enquiry.type.replace('_', ' ').toUpperCase()} request (SR-${enquiry.id.toString().padStart(4, '0')})`;
+      const res = await addEnquiryResponse(id, subject, responseText, false);
       if (res.success) {
-        setResponseSubject('');
         setResponseText('');
-        setMarkAsClosed(false);
         showNotification('Response sent successfully');
         fetchEnquiry();
       }
@@ -115,55 +118,45 @@ const AdminEnquiryDetailsPage = () => {
     }
   };
 
-  const handleNoteSubmit = async (e) => {
+  const handleAddNote = async (e) => {
     e.preventDefault();
-    if (!newNote) return;
-    
-    setSubmittingNote(true);
+    if (!internalNote) return;
+    setAddingNote(true);
     try {
-      const res = await addEnquiryNote(id, newNote);
+      const res = await addEnquiryNote(id, internalNote);
       if (res.success) {
-        setNewNote('');
-        showNotification('Note added successfully');
+        setInternalNote('');
+        showNotification('Internal note added');
         fetchEnquiry();
       }
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       showNotification('Failed to add note', 'error');
     } finally {
-      setSubmittingNote(false);
-    }
-  };
-
-  const handleDeleteNote = async (noteId) => {
-    if (!window.confirm('Are you sure you want to delete this note?')) return;
-    try {
-      const res = await deleteEnquiryNote(id, noteId);
-      if (res.success) {
-        showNotification('Note deleted');
-        fetchEnquiry();
-      }
-    } catch (error) {
-      console.error(error);
-      showNotification('Failed to delete note', 'error');
+      setAddingNote(false);
     }
   };
 
   const handleGenerateQuote = async (e) => {
     e.preventDefault();
-    if (!quoteAmount) return;
+    if (baseMonthlyPrice <= 0) {
+      showNotification('Cannot generate quote without a base monthly price.', 'error');
+      return;
+    }
 
     setGeneratingQuote(true);
     try {
       const payload = {
-        amount: quoteAmount,
-        billingCycle,
-        validityDays: parseInt(validity),
+        unitPrice: pricing.unitPrice,
+        quantity: pricing.quantity,
+        discountAmount: pricing.discountAmount,
+        billingCycle: 'Monthly',
+        validityDays: 15,
         adminNotes: quoteNotes
       };
       const res = await generateQuoteFromEnquiry(id, payload);
       if (res.success) {
-        setQuoteAmount('');
+        setDiscount(0);
         setQuoteNotes('');
         showNotification('Quote generated successfully!');
         fetchEnquiry();
@@ -182,13 +175,22 @@ const AdminEnquiryDetailsPage = () => {
   const getStatusBadgeColors = (status) => {
     switch (status) {
       case 'New': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'Reviewing':
       case 'In Progress': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      case 'Responded': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
-      case 'Quoted': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+      case 'Quote Generated':
+      case 'Responded':
+      case 'Quoted': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
+      case 'Waiting Customer Approval':
       case 'Verification Pending': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-      case 'Verified': return 'bg-teal-500/10 text-teal-400 border-teal-500/20';
+      case 'Approved':
+      case 'Verified': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'Invoice Generated':
+      case 'Payment Pending': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+      case 'Payment Received':
       case 'Paid': return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'Active': return 'bg-secondary/10 text-secondary border-secondary/20';
+      case 'Provisioning':
+      case 'Active': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+      case 'Completed': return 'bg-secondary/10 text-secondary border-secondary/20';
       case 'Closed': return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
       default: return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
     }
@@ -205,30 +207,46 @@ const AdminEnquiryDetailsPage = () => {
   if (!enquiry) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-400">
-        Enquiry not found.
+        Sales Request not found.
       </div>
     );
   }
 
-  // Combine initial message and responses into a single timeline array
+  // Combine initial message, responses, notes, and logs into a single timeline array
   const timeline = [
     {
       id: 'msg-0',
       type: 'customer',
       sender: enquiry.name,
-      subject: 'Initial Request',
-      text: enquiry.message || 'No additional message provided.',
+      badge: 'Customer',
+      text: enquiry.message || 'No additional notes provided.',
       timestamp: enquiry.created_at
     },
     ...(enquiry.responses || []).map(r => ({
       id: `resp-${r.id}`,
       type: 'admin',
       sender: r.admin?.name || 'System Admin',
-      subject: r.subject,
+      badge: 'Admin',
       text: r.response,
       timestamp: r.created_at
+    })),
+    ...(enquiry.notes || []).map(n => ({
+      id: `note-${n.id}`,
+      type: 'system',
+      sender: n.admin?.name || 'System Admin',
+      badge: 'Internal Note',
+      text: n.note_text,
+      timestamp: n.created_at
+    })),
+    ...(enquiry.logs || []).map(l => ({
+      id: `log-${l.id}`,
+      type: 'system',
+      sender: 'System',
+      badge: 'Activity',
+      text: l.details,
+      timestamp: l.created_at
     }))
-  ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Newest first
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12 px-4 sm:px-6 lg:px-8">
@@ -241,66 +259,91 @@ const AdminEnquiryDetailsPage = () => {
         </div>
       )}
 
-      {/* PAGE HEADER */}
-      <div className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* QUICK ACTIONS BAR */}
+      <div className="sticky top-20 z-40 bg-[#0a1128]/95 backdrop-blur-md border border-gray-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-4">
-          <Link to="/admin/enquiries" className="w-10 h-10 shrink-0 rounded-xl bg-[#020817] border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:border-secondary/50 transition-colors">
+          <Link to="/admin/enquiries" className="text-gray-400 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold text-white">ENQ-{enquiry.id.toString().padStart(4, '0')}</h1>
-              <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getStatusBadgeColors(enquiry.status)}`}>
-                {enquiry.status}
-              </span>
-              <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-indigo-500/10 text-indigo-400 border-indigo-500/20`}>
-                Priority: Normal
-              </span>
-            </div>
-            <div className="text-gray-400 text-sm mt-1 flex items-center gap-4">
-              <span>{enquiry.type.replace('_', ' ').toUpperCase()}</span>
-              <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
-              <span>Created: {new Date(enquiry.created_at).toLocaleDateString()}</span>
-            </div>
-          </div>
+          <div className="h-6 w-px bg-gray-700 hidden sm:block"></div>
+          <button onClick={() => document.getElementById('generateQuoteSec')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Generate Quote</button>
+          <button className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Generate Invoice</button>
+          <button className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Assign Sales Exec</button>
         </div>
-        
-        <div className="flex flex-wrap gap-3">
+        <div className="flex items-center gap-3">
           <select 
             value={enquiry.status}
             onChange={(e) => handleStatusChange(e.target.value)}
-            className="bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:border-secondary transition-colors cursor-pointer"
+            className="bg-[#020817] border border-gray-700 text-white rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-secondary transition-colors cursor-pointer"
           >
-            <option value="New">Mark as New</option>
-            <option value="In Progress">Mark In Progress</option>
-            <option value="Quoted">Mark as Quoted</option>
-            <option value="Verification Pending">Mark Verification Pending</option>
-            <option value="Verified">Mark Verified</option>
-            <option value="Paid">Mark Paid</option>
-            <option value="Active">Mark Active</option>
-            <option value="Closed">Close Enquiry</option>
+            <optgroup label="CRM Workflow">
+              <option value="New">New</option>
+              <option value="Reviewing">Reviewing</option>
+              <option value="Quote Generated">Quote Generated</option>
+              <option value="Waiting Customer Approval">Waiting Customer Approval</option>
+              <option value="Approved">Approved</option>
+              <option value="Invoice Generated">Invoice Generated</option>
+              <option value="Payment Pending">Payment Pending</option>
+              <option value="Payment Received">Payment Received</option>
+              <option value="Provisioning">Provisioning</option>
+              <option value="Completed">Completed</option>
+              <option value="Closed">Closed</option>
+            </optgroup>
           </select>
+          <button onClick={() => handleStatusChange('Closed')} className="px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-sm font-bold transition-colors">
+            Close Request
+          </button>
         </div>
       </div>
 
-      {/* ROW 1: Customer Profile | Request Details */}
+      {/* PAGE HEADER */}
+      <div className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-3 mb-2">
+            <h1 className="text-2xl font-bold text-white">SR-{enquiry.id.toString().padStart(4, '0')}</h1>
+            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${enquiry.request_action === 'DIRECT_ORDER' ? 'bg-accent/10 text-accent border-accent/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>
+              {enquiry.request_action ? enquiry.request_action.replace('_', ' ') : 'QUOTE REQUEST'}
+            </span>
+            <span className="px-3 py-1 bg-gray-800 text-gray-300 rounded-full text-[10px] font-bold uppercase tracking-wider">
+              {enquiry.type.replace('_', ' ')}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-6 text-sm text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-500">Status:</span>
+              <span className={`${getStatusBadgeColors(enquiry.status).replace('bg-', 'text-').split(' ')[1]}`}>{enquiry.status}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-500">Priority:</span>
+              <span className="text-white">Normal</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-500">Created:</span>
+              <span className="text-white">{new Date(enquiry.created_at).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-500">Assigned To:</span>
+              <span className="text-white">Unassigned</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ROW 1: Customer Profile | Product Details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">
             Customer Profile
           </h3>
-          <div className="flex items-start gap-4 mb-6 pb-6 border-b border-gray-800">
-            <div className="w-14 h-14 bg-gradient-to-br from-secondary to-accent rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg">
+          <div className="flex items-start gap-4 mb-6">
+            <div className="w-12 h-12 bg-gradient-to-br from-secondary to-accent rounded-full flex items-center justify-center text-white text-lg font-bold shadow-lg">
               {enquiry.name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h4 className="text-xl font-bold text-white">{enquiry.name}</h4>
-              <p className="text-gray-400 text-sm flex items-center gap-1.5 mt-1">
+              <h4 className="text-lg font-bold text-white">{enquiry.name}</h4>
+              <p className="text-gray-400 text-sm flex items-center gap-1.5 mt-0.5">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" />
                 </svg>
@@ -308,445 +351,285 @@ const AdminEnquiryDetailsPage = () => {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-6">
+          <div className="grid grid-cols-2 gap-y-4">
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Email</p>
+              <p className="text-xs text-gray-500 mb-1">Customer Type</p>
+              <p className="text-sm font-medium text-white">{enquiry.company ? 'Enterprise' : 'Individual'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Email</p>
               <p className="text-sm font-medium text-white truncate" title={enquiry.email}>{enquiry.email}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Phone</p>
+              <p className="text-xs text-gray-500 mb-1">Phone Number</p>
               <p className="text-sm font-medium text-white">{enquiry.phone || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Country</p>
-              <p className="text-sm font-medium text-white">{enquiry.user?.country || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Customer Since</p>
-              <p className="text-sm font-medium text-white">
-                {enquiry.user ? new Date(enquiry.user.createdAt).toLocaleDateString() : 'Guest'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Total Enquiries</p>
-              <p className="text-sm font-medium text-white">{userStats ? userStats.totalEnquiries : 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Total Quotes</p>
-              <p className="text-sm font-medium text-white">{userStats ? userStats.totalQuotes : 'N/A'}</p>
             </div>
           </div>
           {enquiry.user_id && (
             <div className="mt-auto pt-6">
-              <Link to={`/admin/users/${enquiry.user_id}`} className="text-sm font-bold text-secondary hover:text-white transition-colors flex items-center gap-1 w-max">
+              <Link to={`/admin/users/${enquiry.user_id}`} className="px-4 py-2 bg-[#020817] border border-gray-800 hover:border-gray-600 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
                 View Full Profile
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
               </Link>
             </div>
           )}
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Request Details
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">
+            Product Information
           </h3>
-          <div className="bg-[#020817] border border-gray-800 rounded-xl p-5 flex-1 flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-bold text-white px-3 py-1 bg-secondary/10 text-secondary border border-secondary/20 rounded-lg">
-                {enquiry.type.replace('_', ' ').toUpperCase()}
-              </span>
-              <span className="text-xs text-gray-500">
-                Submitted: {new Date(enquiry.created_at).toLocaleString()}
-              </span>
+          {enquiry.type === 'contact' ? (
+             <div className="flex-1 flex flex-col justify-center items-center text-center">
+              <p className="text-sm text-gray-500 max-w-sm">This is a general contact request and does not include specific product configurations.</p>
             </div>
-            <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap flex-1 overflow-y-auto max-h-[200px]">
-              {enquiry.message || <span className="text-gray-600 italic">No additional message provided by the customer.</span>}
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-y-4 gap-x-4">
+                {enquiry.configuration_json && Object.entries(enquiry.configuration_json).map(([key, value]) => {
+                  // Hide fields that are irrelevant or repetitive
+                  const hiddenFields = ['estimated_monthly_cost', 'monthly_price', 'monthlyPrice', 'duration_value', 'duration_unit', 'monthly_price', 'subtotal_price', 'gst_amount', 'grand_total', 'discountName', 'durationMultiplier', 'isAI', 'durationSubtotal', 'gstAmount', 'grandTotal', 'discount'];
+                  if (hiddenFields.includes(key) || !value || value === 'N/A' || value === 'None') return null;
+
+                  let displayKey = key.replace(/_/g, ' ').toUpperCase();
+                  if (key === 'vcpu') displayKey = 'CPU (vCPU)';
+                  if (key === 'ram') displayKey = 'MEMORY (RAM)';
+                  if (key === 'storage' || key === 'ssd') displayKey = 'STORAGE';
+                  if (key === 'quantity') displayKey = 'QUANTITY';
+
+                  let displayValue = String(value);
+                  if (typeof value === 'boolean') {
+                    displayValue = value ? 'Enabled' : 'Disabled';
+                  }
+
+                  return (
+                    <div key={key}>
+                      <p className="text-xs text-gray-500 mb-1 truncate">{displayKey}</p>
+                      <p className="text-sm font-medium text-white break-words">{displayValue}</p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </motion.div>
       </div>
 
-      {/* ROW 2: Configuration Details | Activity Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {enquiry.type !== 'contact' ? (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-              <svg className="w-32 h-32 text-secondary" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4 4h16v4H4V4zm0 6h16v4H4v-4zm0 6h16v4H4v-4z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-white mb-6 relative z-10 flex items-center gap-2">
-              <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-              </svg>
-              {getConfigTitle()}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT COLUMN: Chat & Notes */}
+        <div className="lg:col-span-2 space-y-6">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6">
+            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-800 pb-4">
+              Customer Request
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 relative z-10">
-              {enquiry.configuration_json && Object.keys(enquiry.configuration_json).length > 0 ? (
-                Object.entries(enquiry.configuration_json).map(([key, value]) => (
-                  <div key={key} className="bg-[#020817] p-4 rounded-xl border border-gray-800/50 hover:border-secondary/30 transition-colors">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 truncate" title={key.replace(/_/g, ' ')}>
-                      {key.replace(/_/g, ' ')}
-                    </p>
-                    <p className="text-sm font-bold text-white break-words">{value}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="col-span-full text-gray-500 text-sm">No configuration data stored for this enquiry.</div>
-              )}
+            <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
+              <span>Submitted: {new Date(enquiry.created_at).toLocaleDateString()}</span>
+              <span>{new Date(enquiry.created_at).toLocaleTimeString()}</span>
+            </div>
+            <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+              {enquiry.message || "No additional notes provided."}
             </div>
           </motion.div>
-        ) : (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col justify-center items-center text-center">
-             <div className="w-16 h-16 bg-[#020817] rounded-full flex items-center justify-center border border-gray-800 mb-4">
-              <svg className="w-8 h-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">No Configuration</h3>
-            <p className="text-sm text-gray-500 max-w-sm">This is a general contact enquiry and does not include specific hardware requirements.</p>
-          </motion.div>
-        )}
 
-        {/* Quotes Summary */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            Quotes Summary
-          </h3>
-          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-            {enquiry.quotes && enquiry.quotes.length > 0 ? (
-              enquiry.quotes.map(quote => (
-                <div key={quote.id} className="bg-[#020817] border border-gray-800 rounded-xl p-4 flex items-center justify-between group hover:border-secondary/50 transition-colors">
-                  <div>
-                    <div className="text-white font-bold mb-1 flex items-center gap-2">
-                      {quote.quote_number}
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-secondary/10 text-secondary uppercase">
-                        ${quote.monthly_price}/mo
-                      </span>
+          {/* CRM Timeline */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl flex flex-col">
+            <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#020817]/50 rounded-t-2xl">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+                Communication & Activity
+              </h3>
+            </div>
+            
+            <div className="flex-1 p-6 space-y-6 max-h-[500px] overflow-y-auto custom-scrollbar">
+              {timeline.map((msg) => {
+                if (msg.type === 'system') {
+                  return (
+                    <div key={msg.id} className="flex justify-center my-4">
+                      <div className="bg-[#020817] border border-gray-800 px-4 py-2 rounded-full text-xs text-gray-400 flex items-center gap-2 shadow-sm">
+                        <span className={`w-2 h-2 rounded-full ${msg.badge === 'Internal Note' ? 'bg-yellow-500' : 'bg-blue-500'}`}></span>
+                        <span className="font-medium text-gray-300">{msg.sender}:</span> {msg.text}
+                        <span className="text-gray-600 ml-2">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">Created: {new Date(quote.createdAt).toLocaleDateString()}</div>
+                  );
+                }
+
+                const isCustomer = msg.type === 'customer';
+                return (
+                  <div key={msg.id} className={`flex ${isCustomer ? 'justify-start' : 'justify-end'}`}>
+                    <div className="flex flex-col max-w-[85%]">
+                      <div className={`flex items-center gap-2 mb-1.5 ${isCustomer ? 'flex-row' : 'flex-row-reverse'}`}>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${isCustomer ? 'bg-secondary' : 'bg-indigo-600'}`}>
+                          {msg.sender.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs font-bold text-gray-300">{msg.sender}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-wider font-semibold ${isCustomer ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-indigo-900/30 text-indigo-400 border-indigo-500/30'}`}>
+                          {msg.badge}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-2">
+                          {new Date(msg.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                        </span>
+                      </div>
+                      <div className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                        isCustomer 
+                          ? 'bg-[#020817] border border-gray-800 text-gray-300 rounded-tl-sm' 
+                          : 'bg-indigo-900/10 border border-indigo-900/30 text-gray-300 rounded-tr-sm'
+                      }`}>
+                        {msg.text}
+                      </div>
+                    </div>
                   </div>
-                  <Link to={`/admin/quotes/${quote.id}`} className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-gray-400 group-hover:text-white group-hover:bg-secondary transition-all">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                </div>
-              ))
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 text-sm">
-                 <svg className="w-10 h-10 text-gray-700 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                No quotes generated yet.
+                );
+              })}
+            </div>
+
+            {/* Reply Section */}
+            {enquiry.status !== 'Closed' && (
+              <div className="p-4 border-t border-gray-800 bg-[#020817] rounded-b-2xl">
+                <form onSubmit={handleResponseSubmit} className="space-y-3">
+                  <textarea 
+                    required
+                    rows="2"
+                    value={responseText}
+                    onChange={(e) => setResponseText(e.target.value)}
+                    placeholder="Type your reply to the customer..."
+                    className="w-full bg-[#0a1128] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y custom-scrollbar"
+                  ></textarea>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={notifyEmail}
+                        onChange={(e) => setNotifyEmail(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-800 bg-[#0a1128] text-secondary focus:ring-secondary focus:ring-offset-gray-900" 
+                      />
+                      <span className="text-xs text-gray-400 font-medium">Notify customer by email</span>
+                    </label>
+                    <button 
+                      type="submit" 
+                      disabled={submitting}
+                      className="px-5 py-2 bg-secondary hover:bg-accent text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {submitting ? 'Sending...' : 'Send Reply'}
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* ROW 3: Communication Timeline */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-800 bg-[#020817]/50 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            Communication Timeline
-          </h3>
+          </motion.div>
         </div>
-        
-        <div className="flex-1 p-6 space-y-6 max-h-[600px] overflow-y-auto">
-          {timeline.map((msg, index) => (
-            <div key={msg.id} className={`flex ${msg.type === 'customer' ? 'justify-start' : 'justify-end'}`}>
-              <div className={`max-w-[80%] rounded-2xl p-5 ${
-                msg.type === 'customer' 
-                  ? 'bg-[#020817] border border-gray-800 rounded-tl-sm' 
-                  : 'bg-secondary/10 border border-secondary/20 rounded-tr-sm'
-              }`}>
-                <div className="flex justify-between items-start mb-3 gap-8">
-                  <div>
-                    <div className={`font-bold text-sm ${msg.type === 'customer' ? 'text-white' : 'text-secondary'}`}>
-                      {msg.sender} <span className="text-xs font-normal text-gray-500 ml-2">({msg.type === 'customer' ? 'Customer' : 'Admin'})</span>
-                    </div>
-                    <div className="text-xs font-bold text-white mt-1">{msg.subject}</div>
-                  </div>
-                  <div className="text-[10px] text-gray-500 whitespace-nowrap">
-                    {new Date(msg.timestamp).toLocaleString()}
-                  </div>
-                </div>
-                <div className={`text-sm leading-relaxed whitespace-pre-wrap border-t pt-3 ${
-                  msg.type === 'customer' ? 'text-gray-300 border-gray-800/50' : 'text-gray-200 border-secondary/20'
-                }`}>
-                  {msg.text}
-                </div>
+
+        {/* RIGHT COLUMN: Quote Gen, Notes, History */}
+        <div className="space-y-6">
+          {/* Generate Quote */}
+          {(!enquiry.quotes || enquiry.quotes.length === 0) && (
+            <motion.div id="generateQuoteSec" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl flex flex-col shadow-lg shadow-black/20">
+              <div className="p-6 border-b border-gray-800">
+                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Generate Quote</h3>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Reply Form */}
-        {enquiry.status !== 'Closed' && (
-          <div className="p-6 border-t border-gray-800 bg-[#020817]">
-            <form onSubmit={handleResponseSubmit} className="space-y-4 max-w-4xl">
-              <h4 className="text-sm font-bold text-white mb-2">Send Response</h4>
-              <div>
-                <input 
-                  type="text" 
-                  required
-                  value={responseSubject}
-                  onChange={(e) => setResponseSubject(e.target.value)}
-                  placeholder="Subject"
-                  className="w-full bg-[#0a1128] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors"
+              
+              <form onSubmit={handleGenerateQuote} className="p-6 space-y-4">
+                <BillingSummary 
+                  productName={enquiry.type?.replace('_', ' ').toUpperCase() || 'Custom Server'}
+                  productCategory="Infrastructure"
+                  subscriptionPlan="Monthly"
+                  billingCycle="Monthly"
+                  duration="1 Month"
+                  quantity={pricing.quantity}
+                  unitPrice={pricing.unitPrice}
+                  subtotal={pricing.subtotal}
+                  discount={pricing.discountAmount}
+                  taxableAmount={pricing.taxableAmount}
+                  gstAmount={pricing.gstAmount}
+                  grandTotal={pricing.grandTotal}
+                  isEditable={true}
+                  onDiscountChange={(val) => setDiscount(val)}
                 />
-              </div>
-              <div>
-                <textarea 
-                  required
-                  rows="3"
-                  value={responseText}
-                  onChange={(e) => setResponseText(e.target.value)}
-                  placeholder="Type your response to the customer..."
-                  className="w-full bg-[#0a1128] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y"
-                ></textarea>
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={markAsClosed}
-                    onChange={(e) => setMarkAsClosed(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-800 bg-[#0a1128] text-secondary focus:ring-secondary focus:ring-offset-gray-900" 
-                  />
-                  <span className="text-sm text-gray-400">Mark enquiry as Closed</span>
-                </label>
+
+                <div>
+                  <textarea 
+                    rows="2"
+                    value={quoteNotes}
+                    onChange={(e) => setQuoteNotes(e.target.value)}
+                    placeholder="Optional notes for customer..."
+                    className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y custom-scrollbar"
+                  ></textarea>
+                </div>
+
                 <button 
                   type="submit" 
-                  disabled={submitting}
-                  className="px-6 py-2.5 bg-accent hover:bg-secondary text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-secondary/20 disabled:opacity-50 flex items-center gap-2"
+                  disabled={generatingQuote || baseMonthlyPrice <= 0}
+                  className="w-full py-3 bg-secondary hover:bg-accent text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
                 >
-                  {submitting ? 'Sending...' : 'Send Message'}
+                  {generatingQuote ? 'Generating...' : 'Generate Quote'}
                 </button>
-              </div>
-            </form>
-          </div>
-        )}
-      </motion.div>
+              </form>
+            </motion.div>
+          )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* ROW 4: Internal Notes */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 flex flex-col h-[500px]">
-          <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-            <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-            Internal Notes
-          </h3>
-          <p className="text-xs text-gray-500 mb-4">Private admin-only notes. Never visible to customers.</p>
-          
-          <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
-            {enquiry.notes && enquiry.notes.length > 0 ? (
-              enquiry.notes.map(note => (
-                <div key={note.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-4 group relative">
-                  <div className="text-xs text-yellow-500/70 font-medium mb-2 flex justify-between">
-                    <span>{note.admin?.name || 'Admin'}</span>
-                    <span>{new Date(note.created_at).toLocaleString()}</span>
-                  </div>
-                  <p className="text-sm text-gray-300 whitespace-pre-wrap">{note.note_text}</p>
-                  <button 
-                    onClick={() => handleDeleteNote(note.id)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/10 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20"
-                    title="Delete Note"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500 text-sm">
-                No internal notes added yet.
-              </div>
-            )}
-          </div>
-
-          <form onSubmit={handleNoteSubmit} className="mt-auto pt-4 border-t border-gray-800">
-            <div className="flex gap-3">
-              <input 
-                type="text" 
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Add a private note..."
-                className="flex-1 bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-yellow-500/50 transition-colors"
-              />
-              <button 
-                type="submit" 
-                disabled={submittingNote || !newNote}
-                className="px-4 py-2.5 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border border-yellow-500/20 text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
-              >
-                Add Note
-              </button>
+          {/* Quote History */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-gray-800">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Quote History</h3>
             </div>
-          </form>
-        </motion.div>
-
-        {/* ROW 5: Quote Generation Panel */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-gradient-to-br from-[#0a1128] to-[#0d1633] border border-secondary/30 rounded-2xl p-6 flex flex-col h-[500px]">
-          <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-            <svg className="w-5 h-5 text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Generate Quote
-          </h3>
-          <p className="text-xs text-gray-400 mb-6 border-b border-gray-800 pb-4">Create a formal quote based on this enquiry.</p>
-          
-          <form onSubmit={handleGenerateQuote} className="flex flex-col flex-1">
-            <div className="space-y-4 overflow-y-auto pr-2 flex-1">
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Monthly Quote Amount ($)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  required
-                  value={quoteAmount}
-                  onChange={(e) => setQuoteAmount(e.target.value)}
-                  placeholder="e.g. 1500.00"
-                  className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors font-mono"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billing Cycle</label>
-                  <select 
-                    value={billingCycle}
-                    onChange={(e) => setBillingCycle(e.target.value)}
-                    className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors"
-                  >
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Yearly">Yearly</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Validity</label>
-                  <select 
-                    value={validity}
-                    onChange={(e) => setValidity(e.target.value)}
-                    className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors"
-                  >
-                    <option value="7">7 Days</option>
-                    <option value="15">15 Days</option>
-                    <option value="30">30 Days</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Terms / Admin Notes</label>
-                <textarea 
-                  rows="2"
-                  value={quoteNotes}
-                  onChange={(e) => setQuoteNotes(e.target.value)}
-                  placeholder="Additional terms or notes for the quote..."
-                  className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y"
-                ></textarea>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-800 grid grid-cols-2 gap-4">
-              <button 
-                type="button" 
-                className="px-4 py-3 bg-[#020817] border border-gray-800 text-white hover:bg-gray-800 text-sm font-bold rounded-xl transition-colors text-center"
-              >
-                Save Draft
-              </button>
-              <button 
-                type="submit" 
-                disabled={generatingQuote || !quoteAmount}
-                className="px-4 py-3 bg-secondary hover:bg-accent text-white shadow-lg shadow-secondary/20 text-sm font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {generatingQuote ? 'Generating...' : 'Send Quote'}
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-
-      {/* ROW 6: Activity Log */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Activity Log
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-500">
-                <th className="pb-3 font-bold px-4">Timestamp</th>
-                <th className="pb-3 font-bold px-4">Action</th>
-                <th className="pb-3 font-bold px-4">User</th>
-                <th className="pb-3 font-bold px-4">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800/50">
-              {enquiry.logs && enquiry.logs.length > 0 ? (
-                enquiry.logs.map(log => (
-                  <tr key={log.id} className="hover:bg-[#020817]/50 transition-colors">
-                    <td className="py-4 px-4 text-sm text-gray-400 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString()}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-sm font-bold text-white px-2 py-1 bg-[#020817] border border-gray-800 rounded-lg">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-300">
-                      {log.user_id ? `Admin #${log.user_id}` : 'System'}
-                    </td>
-                    <td className="py-4 px-4 text-sm text-gray-400 truncate max-w-xs" title={log.details}>
-                      {log.details || '-'}
-                    </td>
-                  </tr>
-                ))
+            <div className="p-0">
+              {enquiry.quotes && enquiry.quotes.length > 0 ? (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#020817]">
+                    <tr className="text-gray-500 text-xs uppercase">
+                      <th className="py-3 px-4 font-semibold">Quote</th>
+                      <th className="py-3 px-4 font-semibold text-right">Amount</th>
+                      <th className="py-3 px-4 font-semibold text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {enquiry.quotes.map(quote => (
+                      <tr key={quote.id} className="hover:bg-white/[0.02]">
+                        <td className="py-3 px-4 font-medium text-white">{quote.quote_number}</td>
+                        <td className="py-3 px-4 text-gray-300 text-right">₹{quote.monthly_price}</td>
+                        <td className="py-3 px-4 text-center">
+                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary/10 text-secondary uppercase font-bold">
+                            {quote.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ) : (
-                <tr>
-                  <td colSpan="4" className="py-8 text-center text-gray-500 text-sm">
-                    No activity logs found.
-                  </td>
-                </tr>
+                <div className="p-6 text-center text-gray-500 text-sm">
+                  No quotes generated yet.
+                </div>
               )}
-              {/* Always show initial lead creation as a static base log if it's not in DB logs */}
-              <tr>
-                <td className="py-4 px-4 text-sm text-gray-400 whitespace-nowrap">
-                  {new Date(enquiry.created_at).toLocaleString()}
-                </td>
-                <td className="py-4 px-4">
-                  <span className="text-sm font-bold text-white px-2 py-1 bg-[#020817] border border-gray-800 rounded-lg">
-                    Lead Created
-                  </span>
-                </td>
-                <td className="py-4 px-4 text-sm text-gray-300">
-                  {enquiry.name} (Customer)
-                </td>
-                <td className="py-4 px-4 text-sm text-gray-400">
-                  Enquiry submitted via website.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+            </div>
+          </motion.div>
 
+          {/* Internal Notes */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="bg-[#0a1128] border border-gray-800 rounded-2xl flex flex-col">
+            <div className="p-6 border-b border-gray-800">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Internal Notes</h3>
+            </div>
+            <div className="p-6 space-y-4">
+               <form onSubmit={handleAddNote} className="space-y-3">
+                  <textarea 
+                    required
+                    rows="2"
+                    value={internalNote}
+                    onChange={(e) => setInternalNote(e.target.value)}
+                    placeholder="Add an admin-only note..."
+                    className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-yellow-500 transition-colors resize-y custom-scrollbar"
+                  ></textarea>
+                  <button 
+                    type="submit" 
+                    disabled={addingNote}
+                    className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {addingNote ? 'Saving...' : 'Save Note'}
+                  </button>
+                </form>
+            </div>
+          </motion.div>
+
+        </div>
+      </div>
     </div>
   );
 };

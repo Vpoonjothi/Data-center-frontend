@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import api from '../../utils/axios';
 
 const TimelineTab = () => {
   const [timeline, setTimeline] = useState([]);
@@ -9,7 +10,7 @@ const TimelineTab = () => {
   useEffect(() => {
     const fetchTimeline = async () => {
       try {
-        const res = await axios.get('/api/auth/timeline');
+        const res = await api.get('/auth/timeline');
         if (res.data.success) {
           setTimeline(res.data.data);
         }

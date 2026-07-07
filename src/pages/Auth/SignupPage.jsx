@@ -83,7 +83,7 @@ const SignupPage = () => {
         className="max-w-5xl w-full flex flex-col md:flex-row bg-[#0a1128]/80 backdrop-blur-xl border border-gray-800 rounded-3xl shadow-2xl overflow-hidden relative z-10"
       >
         {/* Left Side: Account Benefits */}
-        <div className="w-full md:w-5/12 bg-slate-900/50 p-10 lg:p-12 border-r border-gray-800 flex flex-col justify-center">
+        <div className="hidden md:flex w-full md:w-5/12 bg-slate-900/50 p-10 lg:p-12 border-r border-gray-800 flex-col justify-center">
           <div className="mb-8">
             <Link to="/" className="flex items-center gap-3">
               <div className="relative w-8 h-8 flex items-center justify-center">
@@ -129,7 +129,27 @@ const SignupPage = () => {
         </div>
 
         {/* Right Side: Signup Form */}
-        <div className="w-full md:w-7/12 p-10 lg:p-12">
+        <div className="w-full md:w-7/12 p-8 sm:p-10 lg:p-12">
+          {/* Mobile Logo (Visible only on small screens) */}
+          <div className="md:hidden flex justify-center mb-6">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="relative w-8 h-8 flex items-center justify-center">
+                <svg className="w-8 h-8 text-[#1A801D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
+                  <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+                </svg>
+              </div>
+              <div className="text-left">
+                <span className="text-xl font-heading font-bold text-white leading-none block">
+                  Greenleaf
+                </span>
+                <span className="text-[10px] tracking-[0.2em] text-[#1A801D] font-bold uppercase block mt-0.5">
+                  Agencies
+                </span>
+              </div>
+            </Link>
+          </div>
+
           <div className="text-center md:text-left mb-8">
             <h2 className="text-3xl font-bold text-white mb-2">Create Your Account</h2>
             <p className="text-slate-400 text-sm">Join thousands of businesses trusting Greenleaf.</p>
@@ -151,6 +171,7 @@ const SignupPage = () => {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
                 <input
                   type="text"
+                  required
                   {...register('name')}
                   className={`w-full px-4 py-2.5 bg-slate-900 border ${
                     errors.name ? 'border-red-500' : 'border-gray-700'
@@ -164,6 +185,7 @@ const SignupPage = () => {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Email Address</label>
                 <input
                   type="email"
+                  required
                   {...register('email')}
                   className={`w-full px-4 py-2.5 bg-slate-900 border ${
                     errors.email ? 'border-red-500' : 'border-gray-700'
@@ -177,6 +199,7 @@ const SignupPage = () => {
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Mobile Number</label>
                 <input
                   type="tel"
+                  required
                   {...register('phone')}
                   className={`w-full px-4 py-2.5 bg-slate-900 border ${
                     errors.phone ? 'border-red-500' : 'border-gray-700'
@@ -191,6 +214,7 @@ const SignupPage = () => {
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
+                    required
                     {...register('password')}
                     className={`w-full px-4 py-2.5 bg-slate-900 border ${
                       errors.password ? 'border-red-500' : 'border-gray-700'
@@ -218,6 +242,7 @@ const SignupPage = () => {
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
+                    required
                     {...register('confirmPassword')}
                     className={`w-full px-4 py-2.5 bg-slate-900 border ${
                       errors.confirmPassword ? 'border-red-500' : 'border-gray-700'

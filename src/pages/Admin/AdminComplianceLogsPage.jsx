@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getComplianceLogs, getAuditLogs } from '../../services/adminApi';
 import { motion } from 'framer-motion';
+import Pagination from '../../components/common/Pagination';
 
 const Step = ({ title, status, date }) => {
   const isCompleted = status === 'completed';
@@ -64,7 +65,9 @@ const AdminComplianceLogsPage = () => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('workflow'); // 'workflow' or 'audit'
+  const [activeTab, setActiveTab] = useState('workflow');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchLogs();
@@ -97,20 +100,20 @@ const AdminComplianceLogsPage = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="flex justify-between items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 md:gap-0 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
         <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Compliance & Consent Audit</h1>
-          <p className="text-slate-400 mt-2">Track the end-to-end workflow progress of all enterprise quotes.</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Compliance & Consent Audit</h1>
+          <p className="text-sm md:text-base text-slate-400 mt-2">Track the end-to-end workflow progress of all enterprise quotes.</p>
         </div>
-        <div className="flex gap-2 bg-[#020817] p-1 rounded-xl border border-slate-800">
+        <div className="flex gap-2 bg-[#020817] p-1 rounded-xl border border-slate-800 self-start md:self-auto w-full md:w-auto overflow-x-auto">
           <button 
-            onClick={() => setActiveTab('workflow')}
+            onClick={() => { setActiveTab('workflow'); setCurrentPage(1); }}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'workflow' ? 'bg-secondary text-[#020817]' : 'text-slate-400 hover:text-white'}`}
           >
             Workflows
           </button>
           <button 
-            onClick={() => setActiveTab('audit')}
+            onClick={() => { setActiveTab('audit'); setCurrentPage(1); }}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'audit' ? 'bg-secondary text-[#020817]' : 'text-slate-400 hover:text-white'}`}
           >
             System Logs
@@ -119,7 +122,13 @@ const AdminComplianceLogsPage = () => {
       </div>
 
       <div className="space-y-6">
-        {activeTab === 'workflow' && quotes.map((quote, idx) => {
+        {activeTab === 'workflow' && (() => {
+          const totalPages = Math.ceil(quotes.length / itemsPerPage);
+          const currentItems = quotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+          
+          return (
+            <>
+              {currentItems.map((quote, idx) => {
           const isQuoteCompleted = quote.status !== 'pending' && quote.status !== 'rejected';
           const isQuoteRejected = quote.status === 'rejected';
           const hasKycConsent = quote.KycVerification?.kyc_consent;
@@ -202,7 +211,15 @@ const AdminComplianceLogsPage = () => {
           );
         })}
         
-        {activeTab === 'workflow' && quotes.length === 0 && (
+        {quotes.length > 0 && (
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={Math.ceil(quotes.length / itemsPerPage)} 
+            onPageChange={setCurrentPage} 
+          />
+        )}
+        
+        {quotes.length === 0 && (
           <div className="bg-[#0b132b] border border-slate-800 rounded-2xl p-12 text-center">
             <svg className="w-16 h-16 text-slate-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -211,12 +228,19 @@ const AdminComplianceLogsPage = () => {
             <p className="text-slate-400">There are no quotes or compliance workflows to display.</p>
           </div>
         )}
+            </>
+          );
+        })()}
 
-        {activeTab === 'audit' && (
+        {activeTab === 'audit' && (() => {
+        const totalPages = Math.ceil(auditLogs.length / itemsPerPage);
+        const currentItems = auditLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+        return (
           <div className="bg-[#0a1128] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
+            <div className="overflow-x-auto md:overflow-visible">
+              <table className="w-full text-left text-sm border-collapse block md:table">
+                <thead className="hidden md:table-header-group">
                   <tr className="bg-[#020817] text-slate-400 uppercase tracking-wider text-xs font-semibold border-b border-slate-800">
                     <th className="py-4 px-6">Timestamp</th>
                     <th className="py-4 px-6">Action</th>
@@ -226,21 +250,25 @@ const AdminComplianceLogsPage = () => {
                     <th className="py-4 px-6">Details</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors text-slate-300">
-                      <td className="py-4 px-6 whitespace-nowrap text-slate-400 font-mono text-xs">
+                <tbody className="block md:table-row-group divide-y md:divide-y divide-slate-800">
+                  {currentItems.map((log) => (
+                    <tr key={log.id} className="block md:table-row bg-[#020817] md:bg-transparent border border-slate-800 md:border-b md:border-t-0 md:border-x-0 rounded-xl md:rounded-none mb-4 md:mb-0 p-4 md:p-0 hover:bg-white/[0.02] transition-colors text-slate-300 relative">
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 whitespace-nowrap text-slate-400 font-mono text-xs">
+                        <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Timestamp</span>
                         {new Date(log.created_at).toLocaleString()}
                       </td>
-                      <td className="py-4 px-6">
-                        <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                        <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Action</span>
+                        <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded inline-block">
                           {log.action}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-slate-400">
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-slate-400">
+                        <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Entity</span>
                         {log.entity_type} {log.entity_id ? `#${log.entity_id}` : ''}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                        <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Target User</span>
                         {log.target_user ? (
                           <div className="flex flex-col">
                             <span className="text-white font-medium">{log.target_user.name}</span>
@@ -248,7 +276,8 @@ const AdminComplianceLogsPage = () => {
                           </div>
                         ) : '-'}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                        <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Action By</span>
                         {log.action_by ? (
                           <div className="flex flex-col">
                             <span className="text-white font-medium">{log.action_by.name}</span>
@@ -256,14 +285,15 @@ const AdminComplianceLogsPage = () => {
                           </div>
                         ) : 'System'}
                       </td>
-                      <td className="py-4 px-6 text-xs text-slate-400 max-w-xs truncate" title={log.details ? JSON.stringify(log.details) : ''}>
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-xs text-slate-400 md:max-w-xs break-all md:truncate" title={log.details ? JSON.stringify(log.details) : ''}>
+                        <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Details</span>
                         {log.details ? JSON.stringify(log.details) : '-'}
                       </td>
                     </tr>
                   ))}
                   {auditLogs.length === 0 && (
-                    <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-500">
+                    <tr className="block md:table-row">
+                      <td colSpan="6" className="block md:table-cell py-8 text-center text-slate-500">
                         No audit logs available.
                       </td>
                     </tr>
@@ -271,8 +301,14 @@ const AdminComplianceLogsPage = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination 
+              currentPage={currentPage} 
+              totalPages={totalPages} 
+              onPageChange={setCurrentPage} 
+            />
           </div>
-        )}
+        );
+      })()}
       </div>
     </div>
   );

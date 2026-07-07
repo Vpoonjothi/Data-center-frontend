@@ -1,8 +1,9 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useRouteError } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 
 const NotFoundPage = () => {
+  const error = useRouteError();
   return (
     <div className="min-h-[70vh] flex items-center justify-center bg-sectionBg px-4">
       <div className="text-center">
@@ -11,6 +12,13 @@ const NotFoundPage = () => {
         <p className="text-gray-600 mb-8 max-w-md mx-auto">
           The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
         </p>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-8 text-left max-w-xl mx-auto overflow-auto">
+            <h3 className="font-bold mb-2">Error Details:</h3>
+            <pre className="text-xs whitespace-pre-wrap">{error.statusText || error.message || String(error)}</pre>
+            <pre className="text-xs whitespace-pre-wrap mt-2">{error.stack}</pre>
+          </div>
+        )}
         <Link to="/">
           <Button>Return to Homepage</Button>
         </Link>

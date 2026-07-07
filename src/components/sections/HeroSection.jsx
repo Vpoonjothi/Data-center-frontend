@@ -30,7 +30,7 @@ const HeroSection = () => {
             transition={{ duration: 0.6 }}
             className="text-5xl md:text-6xl lg:text-[64px] font-heading font-extrabold text-white mb-6 leading-[1.1] tracking-tight"
           >
-            <DynamicContent contentKey="home.hero.title_start" fallback="High-Performance" /> <br />
+            <DynamicContent contentKey="home.hero.title_start" fallback="High Performance" /> <br />
             <span className="text-[#166E18]">
               <DynamicContent contentKey="home.hero.title_highlight" fallback="Server Infrastructure" />
             </span>

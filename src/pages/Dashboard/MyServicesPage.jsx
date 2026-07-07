@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getMyServices } from '../../services/api';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { getMyServices, createServiceRenewalOrder, verifyServiceRenewalPayment } from '../../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate } from 'react-router-dom';
 
 const MyServicesPage = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [renewingId, setRenewingId] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -39,9 +41,92 @@ const MyServicesPage = () => {
 
   const getStatusBadge = (status) => {
     if (status === 'Active') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    if (status === 'Expired') return 'bg-red-500/10 text-red-400 border-red-500/20';
     if (status === 'Suspended') return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-    if (status === 'Cancelled') return 'bg-red-500/10 text-red-400 border-red-500/20';
-    return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    if (status === 'Cancelled') return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+  };
+
+  const handleRenew = async (service) => {
+    setRenewingId(service.id);
+    try {
+      // 1. Create Order
+      const orderRes = await createServiceRenewalOrder(service.id);
+      if (!orderRes.success) {
+        alert(orderRes.message || 'Failed to create renewal order');
+        setRenewingId(null);
+        return;
+      }
+
+      if (orderRes.isDummy) {
+        // Proceed directly to verification for Dummy flow
+        const verifyRes = await verifyServiceRenewalPayment(service.id, {
+          isDummy: true,
+          razorpay_order_id: orderRes.data.id,
+        });
+        if (verifyRes.success) {
+          alert(verifyRes.message);
+          window.location.reload(); // Reload to fetch updated services
+        } else {
+          alert('Renewal failed.');
+        }
+        setRenewingId(null);
+        return;
+      }
+
+      // 2. Open Razorpay Modal
+      const options = {
+        key: orderRes.keyId,
+        amount: orderRes.data.amount,
+        currency: orderRes.data.currency,
+        name: 'GreenLeaf Data Center',
+        description: `Renewal for ${service.service_name}`,
+        order_id: orderRes.data.id,
+        handler: async function (response) {
+          try {
+            const verifyRes = await verifyServiceRenewalPayment(service.id, {
+              isDummy: false,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            
+            if (verifyRes.success) {
+              alert(verifyRes.message);
+              window.location.reload();
+            } else {
+              alert(verifyRes.message || 'Verification failed');
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Error verifying payment.');
+          }
+        },
+        theme: {
+          color: '#22C55E'
+        }
+      };
+      
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        alert('Payment failed: ' + response.error.description);
+      });
+      rzp.open();
+
+    } catch (error) {
+      console.error(error);
+      alert('Error initiating renewal.');
+    } finally {
+      setRenewingId(null);
+    }
+  };
+
+  const calculateDaysRemaining = (dueDate) => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const target = new Date(dueDate);
+    target.setHours(0,0,0,0);
+    return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
   };
 
   return (
@@ -82,53 +167,120 @@ const MyServicesPage = () => {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-              <motion.div
-                key={service.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-sm hover:border-slate-700 transition-colors"
-              >
-                <div className="p-6 border-b border-slate-800">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
-                      </svg>
+          <div className="space-y-8">
+            {services.map((service) => {
+              const daysRemaining = calculateDaysRemaining(service.next_due_date);
+              const progressPercentage = Math.max(0, Math.min(100, (daysRemaining / 30) * 100)); // Normalize assuming 30 day cycles
+              
+              const isSuspended = service.status === 'Suspended';
+              const isGracePeriod = service.status === 'Expired';
+              
+              return (
+                <motion.div
+                  key={service.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`relative overflow-hidden rounded-2xl border ${isSuspended ? 'border-orange-500/30' : isGracePeriod ? 'border-red-500/30' : 'border-slate-800'} bg-slate-900 shadow-sm`}
+                >
+                  {/* Banner for Suspended / Grace Period */}
+                  {(isSuspended || isGracePeriod) && (
+                    <div className={`w-full py-2 px-6 text-sm font-bold text-center ${isSuspended ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {isSuspended 
+                        ? 'SERVER SUSPENDED - Complete payment to instantly reactivate your service. Data is preserved.' 
+                        : 'GRACE PERIOD - Subscription expired. Please renew immediately to avoid suspension.'}
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded border uppercase tracking-wider ${getStatusBadge(service.status)}`}>
-                        {service.status}
-                      </span>
-                      {service.status === 'Active' && getDueBadge(service.next_due_date)}
+                  )}
+
+                  <div className="p-6 md:p-8 flex flex-col md:flex-row gap-8">
+                    {/* Left Column: Details */}
+                    <div className="flex-1 space-y-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-2xl font-bold text-white">{service.service_name}</h3>
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded border uppercase tracking-wider ${getStatusBadge(service.status)}`}>
+                              {service.status}
+                            </span>
+                          </div>
+                          <p className="text-slate-400">{service.service_type}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-3xl font-bold text-white">₹{parseFloat(service.monthly_amount).toLocaleString()}<span className="text-lg text-slate-500 font-normal">/mo</span></p>
+                        </div>
+                      </div>
+
+                      {/* Animated Timeline */}
+                      <div className="mt-8">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-slate-400">Billing Cycle</span>
+                          <span className="font-bold text-white">
+                            {daysRemaining < 0 
+                              ? `${Math.abs(daysRemaining)} Days Overdue` 
+                              : `${daysRemaining} Days Remaining`}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progressPercentage}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className={`absolute top-0 left-0 h-full rounded-full ${
+                              daysRemaining > 7 ? 'bg-emerald-500' : 
+                              daysRemaining > 3 ? 'bg-yellow-500' : 
+                              'bg-red-500'
+                            }`}
+                          />
+                        </div>
+                        <div className="flex justify-between text-xs mt-2 text-slate-500">
+                          <span>{new Date(service.start_date).toLocaleDateString()}</span>
+                          <span>Expires: {new Date(service.next_due_date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Right Column: Actions */}
+                    <div className="md:w-64 shrink-0 flex flex-col justify-center space-y-3 bg-slate-950/50 p-6 rounded-xl border border-slate-800/50">
+                      <div className="text-sm text-slate-400 mb-4">
+                        Next Invoice: <br/>
+                        <span className="text-white font-medium text-base">
+                          {new Date(service.next_due_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      
+                      <button 
+                        onClick={() => handleRenew(service)}
+                        disabled={renewingId === service.id || service.status === 'Cancelled'}
+                        className={`w-full py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors ${
+                          (isSuspended || isGracePeriod || daysRemaining <= 7)
+                            ? 'bg-secondary hover:bg-secondary/90 text-white' 
+                            : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                        } disabled:opacity-50`}
+                      >
+                        {renewingId === service.id ? (
+                          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            {isSuspended ? 'Pay & Reactivate' : 'Renew Subscription'}
+                          </>
+                        )}
+                      </button>
+
+                      {/* Download Last Invoice / View History */}
+                      <Link 
+                        to="/dashboard/payments" 
+                        className="w-full py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-700/50 text-center transition-colors"
+                      >
+                        View Billing History
+                      </Link>
                     </div>
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-1">{service.service_name}</h3>
-                  <p className="text-sm text-slate-400 mb-3">{service.service_type}</p>
-                  <p className="text-xl font-bold text-white">₹{parseFloat(service.monthly_amount).toLocaleString()}<span className="text-sm text-slate-500 font-normal">/mo</span></p>
-                </div>
-                
-                <div className="px-6 py-4 bg-slate-950/50 space-y-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Subscription Status</span>
-                    <span className="text-white">{service.status}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Purchased On</span>
-                    <span className="text-white">{new Date(service.purchase_date).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500">Renewal Type</span>
-                    <span className="text-white uppercase">{service.renewal_type || 'manual'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-800/50">
-                    <span className="text-slate-400 font-medium">Next Renewal Date</span>
-                    <span className="text-white font-medium">{service.next_due_date ? new Date(service.next_due_date).toLocaleDateString() : 'N/A'}</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </main>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AuthContext } from '../../context/AuthContext';
+import { useContext } from 'react';
 import { MAIN_NAVIGATION } from '../../constants/navigation';
 import { COMPANY_INFO } from '../../constants/companyInfo';
 
@@ -143,6 +145,7 @@ const MobileMenuItem = ({ item, isActive, setIsOpen }) => {
 const Navbar = () => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { user, logout } = useContext(AuthContext);
 
   return (
     <nav className="w-full bg-[#020817]/95 backdrop-blur-md transition-all relative">
@@ -187,7 +190,7 @@ const Navbar = () => {
           {/* Desktop Action Button (Right) */}
           <div className="hidden lg:flex items-center pl-4">
             <Link
-              to="/contact"
+              to={user ? '/dashboard/enquiries' : '/login'}
               className="bg-[#166E18] hover:bg-accent text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-lg shadow-secondary/20"
             >
               Get a Quote
@@ -241,11 +244,47 @@ const Navbar = () => {
                 );
               })}
               
-              <div className="pt-4 mt-4 border-t border-gray-800">
+              
+              <div className="pt-4 mt-4 border-t border-gray-800 space-y-3">
+                {user ? (
+                  <>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
+                    >
+                      My Profile & Dashboard
+                    </Link>
+                    <button
+                      onClick={() => { logout(); setIsOpen(false); }}
+                      className="block w-full text-left px-3 py-2.5 rounded-md text-base font-medium text-red-400 hover:bg-red-500/10"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/signup"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-3 py-2.5 rounded-md text-base font-medium text-gray-300 hover:bg-gray-800 hover:text-white"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+                
                 <Link
-                  to="/contact"
+                  to={user ? '/dashboard/enquiries' : '/login'}
                   onClick={() => setIsOpen(false)}
-                  className="flex justify-center items-center w-full bg-[#166E18] hover:bg-accent text-white px-6 py-3.5 rounded-lg text-base font-medium transition-colors shadow-lg shadow-secondary/20"
+                  className="flex justify-center items-center w-full bg-[#166E18] hover:bg-accent text-white px-6 py-3.5 rounded-lg text-base font-medium transition-colors shadow-lg shadow-secondary/20 mt-4"
                 >
                   Get a Quote
                 </Link>

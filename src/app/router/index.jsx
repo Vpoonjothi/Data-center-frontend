@@ -1,5 +1,5 @@
 import React from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import MainLayout from '../../layouts/MainLayout';
 import HomePage from '../../pages/Home/HomePage';
 import AboutPage from '../../pages/About/AboutPage';
@@ -33,13 +33,15 @@ import MyPaymentsPage from '../../pages/Dashboard/MyPaymentsPage';
 import ProfilePage from '../../pages/Dashboard/ProfilePage';
 import MyEnquiriesPage from '../../pages/Dashboard/MyEnquiriesPage';
 import MyQuotesPage from '../../pages/Dashboard/MyQuotesPage';
+import NotificationsPage from '../../pages/Dashboard/NotificationsPage';
 import ProtectedRoute from '../../components/ProtectedRoute';
 
 // Admin Imports
 import AdminLayout from '../../layouts/AdminLayout';
 import AdminProtectedRoute from '../../components/AdminProtectedRoute';
-import { AdminAuthProvider } from '../../context/AdminAuthContext';
+import { AdminAuthProvider, AdminAuthContext } from '../../context/AdminAuthContext';
 import AdminLoginPage from '../../pages/Admin/AdminLoginPage';
+import SuperAdminLoginPage from '../../pages/Admin/SuperAdminLoginPage';
 import AdminDashboardPage from '../../pages/Admin/AdminDashboardPage';
 import AdminUsersPage from '../../pages/Admin/AdminUsersPage';
 import AdminUserDetailsPage from '../../pages/Admin/AdminUserDetailsPage';
@@ -58,6 +60,17 @@ import AdminContentPage from '../../pages/Admin/AdminContentPage';
 import AdminEnterpriseSettingsPage from '../../pages/Admin/AdminEnterpriseSettingsPage';
 import AdminAiSettingsPage from '../../pages/Admin/AdminAiSettingsPage';
 import AdminColocationSettingsPage from '../../pages/Admin/AdminColocationSettingsPage';
+import SuperAdminPanel from '../../pages/Admin/SuperAdminPanel';
+import RoleProtectedRoute from '../../components/RoleProtectedRoute';
+
+const AdminIndexRedirect = () => {
+  const { admin } = React.useContext(AdminAuthContext);
+  if (admin?.role === 'superadmin') {
+    return <Navigate to="/admin/superadmin" replace />;
+  }
+  return <Navigate to="/admin/dashboard" replace />;
+};
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -208,6 +221,14 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      {
+        path: 'dashboard/notifications',
+        element: (
+          <ProtectedRoute>
+            <NotificationsPage />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
   {
@@ -215,6 +236,14 @@ export const router = createBrowserRouter([
     element: (
       <AdminAuthProvider>
         <AdminLoginPage />
+      </AdminAuthProvider>
+    ),
+  },
+  {
+    path: '/superadmin/login',
+    element: (
+      <AdminAuthProvider>
+        <SuperAdminLoginPage />
       </AdminAuthProvider>
     ),
   },
@@ -230,79 +259,100 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/admin/dashboard" replace />
-      },
-      {
-        path: 'dashboard',
-        element: <AdminDashboardPage />
-      },
-      {
-        path: 'users',
-        element: <AdminUsersPage />
-      },
-      {
-        path: 'users/:id',
-        element: <AdminUserDetailsPage />
-      },
-      {
-        path: 'enquiries',
-        element: <AdminEnquiriesPage />
-      },
-      {
-        path: 'enquiries/:id',
-        element: <AdminEnquiryDetailsPage />
-      },
-      {
-        path: 'quotes',
-        element: <AdminQuotesPage />
-      },
-      {
-        path: 'quotes/:id',
-        element: <AdminQuoteDetailsPage />
-      },
-      {
-        path: 'verifications',
-        element: <AdminVerificationsPage />
-      },
-      {
-        path: 'verifications/:id',
-        element: <AdminVerificationDetailPage />
-      },
-      {
-        path: 'services',
-        element: <AdminServicesPage />
-      },
-      {
-        path: 'payments',
-        element: <AdminPaymentsPage />
-      },
-      {
-        path: 'compliance',
-        element: <AdminComplianceLogsPage />
+        element: <AdminIndexRedirect />
       },
       {
         path: 'settings',
         element: <AdminSettingsPage />
       },
       {
-        path: 'offers',
-        element: <AdminOffersPage />
+        path: 'superadmin',
+        element: (
+          <RoleProtectedRoute allowedRoles={['superadmin']}>
+            <SuperAdminPanel />
+          </RoleProtectedRoute>
+        )
       },
       {
-        path: 'content',
-        element: <AdminContentPage />
-      },
-      {
-        path: 'enterprise-settings',
-        element: <AdminEnterpriseSettingsPage />
-      },
-      {
-        path: 'ai-settings',
-        element: <AdminAiSettingsPage />
-      },
-      {
-        path: 'colocation-settings',
-        element: <AdminColocationSettingsPage />
+        element: (
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <Outlet />
+          </RoleProtectedRoute>
+        ),
+        children: [
+          {
+            path: 'dashboard',
+            element: <AdminDashboardPage />
+          },
+          {
+            path: 'notifications',
+            element: <NotificationsPage isAdmin={true} />
+          },
+          {
+            path: 'users',
+            element: <AdminUsersPage />
+          },
+          {
+            path: 'users/:id',
+            element: <AdminUserDetailsPage />
+          },
+          {
+            path: 'enquiries',
+            element: <AdminEnquiriesPage />
+          },
+          {
+            path: 'enquiries/:id',
+            element: <AdminEnquiryDetailsPage />
+          },
+          {
+            path: 'quotes',
+            element: <AdminQuotesPage />
+          },
+          {
+            path: 'quotes/:id',
+            element: <AdminQuoteDetailsPage />
+          },
+          {
+            path: 'verifications',
+            element: <AdminVerificationsPage />
+          },
+          {
+            path: 'verifications/:id',
+            element: <AdminVerificationDetailPage />
+          },
+          {
+            path: 'services',
+            element: <AdminServicesPage />
+          },
+          {
+            path: 'payments',
+            element: <AdminPaymentsPage />
+          },
+          {
+            path: 'compliance',
+            element: <AdminComplianceLogsPage />
+          },
+          {
+            path: 'offers',
+            element: <AdminOffersPage />
+          },
+          {
+            path: 'content',
+            element: <AdminContentPage />
+          },
+          {
+            path: 'enterprise-settings',
+            element: <AdminEnterpriseSettingsPage />
+          },
+          {
+            path: 'ai-settings',
+            element: <AdminAiSettingsPage />
+          },
+          {
+            path: 'colocation-settings',
+            element: <AdminColocationSettingsPage />
+          }
+        ]
       }
     ]
   }

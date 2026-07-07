@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import ContactCTASection from '../../components/sections/ContactCTASection';
 import { submitEnquiry } from '../../services/api';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
 import { ContentContext } from '../../context/ContentContext';
+import { AuthContext } from '../../context/AuthContext';
 
 const RACK_SIZES = [
   { units: 2, label: '2U Rack Space' },
@@ -36,7 +37,10 @@ const STATIC_IP_PRICE_DEFAULT = 1000;
 const RACK_U_PRICE_DEFAULT = 500;
 
 const ColocationPage = () => {
-  const { getContent } = React.useContext(ContentContext);
+  const { getContent } = useContext(ContentContext);
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const location = useLocation();
   
   const STATIC_IP_PRICE = Number(getContent('Colocation Static IP Price', STATIC_IP_PRICE_DEFAULT));
   const RACK_U_PRICE = Number(getContent('Colocation Rack Price Per U', RACK_U_PRICE_DEFAULT));
@@ -48,13 +52,8 @@ const ColocationPage = () => {
   const [estimatedTotal, setEstimatedTotal] = useState(0);
 
   // Form State
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: '',
-    message: ''
-  });
+  const [message, setMessage] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -105,12 +104,7 @@ const ColocationPage = () => {
     
     setEstimatedTotal(total);
   }, [rackRequirement, selectedRack, selectedInternet, requireStaticIP]);
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (requestAction) => {
     setSubmitting(true);
     setError('');
     
@@ -141,20 +135,29 @@ const ColocationPage = () => {
       configJson.setup_fee = `₹${setupFee.toLocaleString()}`;
       configJson.gst_amount = `₹${gstAmount.toLocaleString()}`;
       configJson.grand_total = `₹${grandTotal.toLocaleString()}`;
+      configJson.quantity = quantity;
 
-      const payload = {
+      const enquiryData = {
+        name: user.name,
+        email: user.email,
+        company: user?.company || '',
+        phone: user?.phone || '',
         type: 'colocation',
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        company: formData.company,
-        message: formData.message,
+        message: message,
+        request_action: requestAction,
         configuration_json: configJson
       };
-
-      await submitEnquiry(payload);
+      
+      await submitEnquiry(enquiryData);
+      
+      setSubmitting(false);
       setSuccess(true);
-      setFormData({ name: '', email: '', phone: '', company: '', message: '' });
+      
+      setTimeout(() => {
+        setSuccess(false);
+        setMessage('');
+        setQuantity(1);
+      }, 5000);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || 'Failed to submit enquiry. Please try again.');
@@ -461,28 +464,71 @@ const ColocationPage = () => {
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-4">
                     {error && (
                       <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-lg">
                         {error}
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <input type="text" name="name" required value={formData.name} onChange={handleInputChange} placeholder="Full Name" className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors" />
-                      <input type="text" name="phone" required value={formData.phone} onChange={handleInputChange} placeholder="Phone Number" className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors" />
-                    </div>
-                    <input type="email" name="email" required value={formData.email} onChange={handleInputChange} placeholder="Email Address" className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors" />
-                    <input type="text" name="company" value={formData.company} onChange={handleInputChange} placeholder="Company Name (Optional)" className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors" />
-                    <textarea name="message" rows="3" value={formData.message} onChange={handleInputChange} placeholder="Additional Requirements or Questions..." className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y"></textarea>
-                    
-                    <button 
-                      type="submit" 
-                      disabled={submitting}
-                      className="w-full bg-secondary hover:bg-accent text-white py-4 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
-                    >
-                      {submitting ? 'Submitting...' : 'Request Official Quote'}
-                    </button>
-                  </form>
+                    {!user ? (
+                      <div className="text-center p-6 bg-slate-900/50 border border-gray-800 rounded-xl mt-4">
+                        <h3 className="text-lg font-bold text-white mb-2">Login Required</h3>
+                        <p className="text-gray-400 text-sm mb-4">Please log in to your account to request a quote or place an order.</p>
+                        <button 
+                          onClick={() => navigate('/login', { state: { from: location.pathname } })}
+                          className="px-6 py-2.5 bg-secondary hover:bg-accent text-white rounded-lg font-bold transition-colors w-full"
+                        >
+                          Log In
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-emerald-100 flex flex-col gap-1 mt-4">
+                          <p className="text-sm">Requesting as: <strong className="text-white">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
+                          <p className="text-xs text-gray-500 mt-1 italic">Your account information will be automatically used for this request.</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Quantity (Servers/Racks)</label>
+                          <input 
+                            type="number" 
+                            min="1"
+                            value={quantity}
+                            onChange={(e) => setQuantity(e.target.value)}
+                            className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-secondary transition-colors"
+                            placeholder="1"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Additional Requirements / Notes</label>
+                          <textarea 
+                            value={message} 
+                            onChange={(e) => setMessage(e.target.value)} 
+                            placeholder="Tell us about your requirements..." 
+                            className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y h-24"
+                          ></textarea>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                          <button 
+                            onClick={() => handleSubmit('REQUEST_QUOTE')}
+                            disabled={submitting}
+                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 text-sm border border-slate-700"
+                          >
+                            {submitting ? 'Processing...' : 'Request Quote'}
+                          </button>
+                          <button 
+                            onClick={() => handleSubmit('DIRECT_ORDER')}
+                            disabled={submitting}
+                            className="flex-1 bg-secondary hover:bg-accent text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 text-sm shadow-lg shadow-secondary/25"
+                          >
+                            {submitting ? 'Processing...' : 'Order Now'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

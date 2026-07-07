@@ -8,6 +8,9 @@ import GlobalSecurityIcon from '../components/shared/GlobalSecurityIcon';
 const MainLayout = () => {
   const location = useLocation();
   const isAuthPage = ['/login', '/signup', '/forgot-password'].includes(location.pathname);
+  const isDashboardPage = location.pathname.startsWith('/dashboard') || 
+                          location.pathname.startsWith('/verification') || 
+                          location.pathname.startsWith('/payment');
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -25,7 +28,7 @@ const MainLayout = () => {
         <Outlet />
       </main>
       {!isAuthPage && <Footer />}
-      <GlobalSecurityIcon />
+      {!isAuthPage && !isDashboardPage && <GlobalSecurityIcon />}
     </div>
   );
 };

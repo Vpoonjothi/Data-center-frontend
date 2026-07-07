@@ -227,10 +227,10 @@ const AdminUserDetailsPage = () => {
             </div>
           </div>
 
-          {/* Enquiry / Activity History Card */}
+          {/* Sales Request History Card */}
           <div className="bg-[#0a1128] border border-gray-800 rounded-2xl overflow-hidden">
             <div className="p-6 border-b border-gray-800">
-              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Enquiry History</h3>
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Sales Request History</h3>
             </div>
             
             <div className="divide-y divide-gray-800 max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -242,8 +242,15 @@ const AdminUserDetailsPage = () => {
                         <span className="font-medium text-white">{enq.type.replace('_', ' ').toUpperCase()}</span>
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                           enq.status === 'New' ? 'bg-blue-500/20 text-blue-400' :
-                          enq.status === 'In Progress' ? 'bg-yellow-500/20 text-yellow-400' :
-                          enq.status === 'Responded' ? 'bg-secondary/20 text-secondary' :
+                          enq.status === 'Reviewing' || enq.status === 'In Progress' ? 'bg-yellow-500/20 text-yellow-400' :
+                          enq.status === 'Quote Generated' || enq.status === 'Responded' || enq.status === 'Quoted' ? 'bg-cyan-500/20 text-cyan-400' :
+                          enq.status === 'Waiting Customer Approval' || enq.status === 'Verification Pending' ? 'bg-orange-500/20 text-orange-400' :
+                          enq.status === 'Approved' || enq.status === 'Verified' ? 'bg-emerald-500/20 text-emerald-400' :
+                          enq.status === 'Invoice Generated' || enq.status === 'Payment Pending' ? 'bg-purple-500/20 text-purple-400' :
+                          enq.status === 'Payment Received' || enq.status === 'Paid' ? 'bg-green-500/20 text-green-400' :
+                          enq.status === 'Provisioning' || enq.status === 'Active' ? 'bg-indigo-500/20 text-indigo-400' :
+                          enq.status === 'Completed' ? 'bg-secondary/20 text-secondary' :
+                          enq.status === 'Closed' ? 'bg-gray-500/20 text-gray-400' :
                           'bg-gray-500/20 text-gray-400'
                         }`}>
                           {enq.status}
@@ -260,7 +267,7 @@ const AdminUserDetailsPage = () => {
                 ))
               ) : (
                 <div className="p-8 text-center text-gray-500">
-                  This user hasn't made any enquiries yet.
+                  This user hasn't made any sales requests yet.
                 </div>
               )}
             </div>

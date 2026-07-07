@@ -68,14 +68,14 @@ const AdminUsersPage = () => {
           </div>
         </div>
         
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto md:overflow-visible">
           {loading ? (
             <div className="flex justify-center p-8">
               <div className="w-8 h-8 border-4 border-secondary/20 border-t-secondary rounded-full animate-spin"></div>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
+            <table className="w-full text-left border-collapse block md:table min-w-full md:min-w-[800px]">
+              <thead className="hidden md:table-header-group">
                 <tr className="bg-[#020817] text-gray-400 text-xs uppercase tracking-wider font-semibold border-b border-gray-800">
                   <th className="py-4 px-6">Name</th>
                   <th className="py-4 px-6">Email / Phone</th>
@@ -85,19 +85,28 @@ const AdminUsersPage = () => {
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800 text-sm">
+              <tbody className="block md:table-row-group text-sm">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
-                    <td className="py-4 px-6 font-medium text-white">{user.name}</td>
-                    <td className="py-4 px-6">
+                  <tr key={user.id} className="block md:table-row bg-[#020817] md:bg-transparent border border-gray-800 md:border-b md:border-x-0 md:border-t-0 rounded-xl md:rounded-none mb-4 md:mb-0 p-4 md:p-0 hover:bg-white/[0.02] transition-colors relative">
+                    <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 font-medium text-white">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Name</span>
+                      {user.name}
+                    </td>
+                    <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Email / Phone</span>
                       <div className="text-gray-300">{user.email}</div>
                       <div className="text-gray-500 text-xs">{user.phone || 'N/A'}</div>
                     </td>
-                    <td className="py-4 px-6 text-gray-400">{user.company || 'N/A'}</td>
-                    <td className="py-4 px-6 text-gray-400">
+                    <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-gray-400">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Company</span>
+                      {user.company || 'N/A'}
+                    </td>
+                    <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-gray-400">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Registration Date</span>
                       {new Date(user.createdAt || user.created_at).toLocaleDateString()}
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                      <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Status</span>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
                         user.status === 'active' ? 'bg-secondary/10 text-secondary border-secondary/20' :
                         user.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
@@ -106,7 +115,7 @@ const AdminUsersPage = () => {
                         {user.status}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right space-x-3">
+                    <td className="block md:table-cell py-3 md:py-4 px-2 md:px-6 md:text-right border-t border-gray-800 md:border-none mt-3 md:mt-0 space-x-3">
                       <Link to={`/admin/users/${user.id}`} className="text-secondary hover:text-secondary font-medium text-sm">
                         View
                       </Link>
@@ -117,8 +126,8 @@ const AdminUsersPage = () => {
                   </tr>
                 ))}
                 {filteredUsers.length === 0 && (
-                  <tr>
-                    <td colSpan="6" className="py-8 text-center text-gray-500">
+                  <tr className="block md:table-row">
+                    <td colSpan="6" className="block md:table-cell py-8 text-center text-gray-500">
                       No users found.
                     </td>
                   </tr>

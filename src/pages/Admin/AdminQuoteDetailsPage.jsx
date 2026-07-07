@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getQuoteById, updateQuoteStatus } from '../../services/adminApi';
-import { calculateSubscriptionPricing, calculateSubscriptionPricingFromFinal } from '../../utils/pricingCalculator';
+import BillingSummary from '../../components/common/BillingSummary';
 
 const AdminQuoteDetailsPage = () => {
   const { id } = useParams();
@@ -69,17 +69,13 @@ const AdminQuoteDetailsPage = () => {
     }
   };
 
-  const previewPricing = useMemo(() => {
-    if (quote?.status === 'pending' && finalAmount) {
-      return calculateSubscriptionPricingFromFinal(finalAmount, quote.duration_value, quote.duration_unit);
-    }
-    return null;
-  }, [quote, finalAmount]);
-
-  const displayMonthly = previewPricing ? previewPricing.monthlySubscription : parseFloat(quote?.monthly_price || 0);
-  const displayContractValue = previewPricing ? previewPricing.contractValue : parseFloat(quote?.subtotal_price || quote?.monthly_price || 0);
-  const displayGst = previewPricing ? previewPricing.gstAmount : parseFloat(quote?.gst_amount || 0);
-  const displayTotal = previewPricing ? previewPricing.totalPayable : parseFloat(quote?.grand_total || quote?.monthly_price || 0);
+  const displayMonthly = parseFloat(quote?.unit_price || quote?.monthly_price || 0);
+  const displayQuantity = parseInt(quote?.quantity || 1, 10);
+  const displaySubtotal = parseFloat(quote?.subtotal || quote?.subtotal_price || quote?.monthly_price || 0);
+  const displayDiscount = parseFloat(quote?.discount_amount || 0);
+  const displayTaxable = parseFloat(quote?.taxable_amount || displaySubtotal);
+  const displayGst = parseFloat(quote?.gst_amount || 0);
+  const displayTotal = parseFloat(quote?.grand_total || displaySubtotal);
 
   if (loading) {
     return <div className="text-center py-12 text-gray-400">Loading quote details...</div>;
@@ -150,42 +146,25 @@ const AdminQuoteDetailsPage = () => {
                 <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">Service Type</h3>
                 <p className="text-white text-lg">{quote.service_type}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-800">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">vCPU Cores</h3>
-                  <p className="text-white">{quote.vcpu}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">RAM (GB)</h3>
-                  <p className="text-white">{quote.ram}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Storage (GB)</h3>
-                  <p className="text-white">{quote.storage}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Monthly Subscription</h3>
-                  <p className="text-white">₹{displayMonthly.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Subscription Duration</h3>
-                  <p className="text-white">{quote.duration_value && quote.duration_unit ? `${quote.duration_value} ${quote.duration_unit}` : '1 Month'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Contract Value</h3>
-                  <p className="text-white">₹{displayContractValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">GST (18%)</h3>
-                  <p className="text-white">₹{displayGst.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                </div>
               </div>
-              <div className="pt-4 border-t border-gray-800 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-300">Final Quotation Amount</h3>
-                <p className="text-2xl font-bold text-secondary">₹{displayTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+              <div className="mt-8">
+                <BillingSummary 
+                  productName={quote.service_type}
+                  productCategory="Infrastructure"
+                  subscriptionPlan={quote.duration_type || 'Monthly'}
+                  billingCycle="Monthly"
+                  duration={`${quote.duration_value || 1} ${quote.duration_unit || 'Months'}`}
+                  quantity={displayQuantity}
+                  unitPrice={displayMonthly}
+                  subtotal={displaySubtotal}
+                  discount={displayDiscount}
+                  taxableAmount={displayTaxable}
+                  gstAmount={displayGst}
+                  grandTotal={displayTotal}
+                  isEditable={false}
+                />
               </div>
             </div>
-          </div>
           
           {quote.notes && quote.status !== 'pending' && (
             <div className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 md:p-8">
@@ -231,36 +210,7 @@ const AdminQuoteDetailsPage = () => {
           <div className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Workflow Actions</h3>
             
-            {quote.status === 'pending' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-2">Final Quotation Amount (₹)</label>
-                  <input 
-                    type="number"
-                    value={finalAmount}
-                    onChange={(e) => setFinalAmount(e.target.value)}
-                    className="w-full bg-[#020817] border border-gray-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-secondary"
-                    placeholder="e.g. 5000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-2">Quotation Notes (Optional)</label>
-                  <textarea 
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full bg-[#020817] border border-gray-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-secondary h-24 resize-none"
-                    placeholder="Include setup fees or special terms..."
-                  ></textarea>
-                </div>
-                <button 
-                  onClick={() => handleUpdateStatus('quoted')}
-                  disabled={updating}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-800 disabled:text-gray-500 text-white rounded-lg text-sm font-bold transition-colors shadow-lg shadow-blue-500/20"
-                >
-                  {updating ? 'Processing...' : 'Mark as Quoted'}
-                </button>
-              </div>
-            )}
+
 
             {quote.status === 'quoted' && (
               <div className="space-y-4">

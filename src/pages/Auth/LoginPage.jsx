@@ -16,6 +16,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(location.state?.message || '');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -32,6 +33,7 @@ const LoginPage = () => {
   const onSubmit = async (data) => {
     try {
       setError('');
+      setSuccess('');
       setIsLoading(true);
       await login(data.email, data.password);
       navigate(from, { replace: true });
@@ -57,13 +59,29 @@ const LoginPage = () => {
             <p className="text-slate-400">Sign in to your Greenleaf account</p>
           </div>
 
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400 text-sm flex items-center gap-3"
+            >
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{success}</span>
+            </motion.div>
+          )}
+
           {error && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm text-center"
+              className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-3"
             >
-              {error}
+              <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{error}</span>
             </motion.div>
           )}
 
@@ -74,6 +92,7 @@ const LoginPage = () => {
               </label>
               <input
                 type="email"
+                required
                 {...register('email')}
                 className={`w-full px-4 py-3 bg-slate-950 border ${
                   errors.email ? 'border-red-500' : 'border-slate-800'
@@ -92,6 +111,7 @@ const LoginPage = () => {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  required
                   {...register('password')}
                   className={`w-full px-4 py-3 bg-slate-950 border ${
                     errors.password ? 'border-red-500' : 'border-slate-800'
@@ -116,19 +136,7 @@ const LoginPage = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-700 bg-slate-950 text-secondary focus:ring-secondary"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-400">
-                  Remember me
-                </label>
-              </div>
-
+            <div className="flex items-center justify-end">
               <div className="text-sm">
                 <Link
                   to="/forgot-password"

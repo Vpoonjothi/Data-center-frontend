@@ -20,8 +20,8 @@ const GlobalSecurityIcon = () => {
     >
       <div className="relative group cursor-pointer" onClick={() => navigate('/enterprise-security')}>
         {/* Pulsing Outer Glow */}
-        <div className="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-40 group-hover:opacity-70 group-hover:scale-150 transition-all duration-700 animate-pulse" />
-        <div className="absolute inset-0 bg-emerald-400 rounded-full blur-md opacity-50 group-hover:opacity-80 group-hover:scale-125 transition-all duration-500" />
+        <div className="absolute inset-0 bg-emerald-500 rounded-full blur-xl opacity-40 group-hover:opacity-70 group-hover:scale-150 transition-all duration-700 animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 bg-emerald-400 rounded-full blur-md opacity-50 group-hover:opacity-80 group-hover:scale-125 transition-all duration-500 pointer-events-none" />
         
         {/* Button Container */}
         <motion.div 

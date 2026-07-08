@@ -2,11 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getUsers, deleteUser } from '../../services/adminApi';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   const fetchUsers = async () => {
     try {
@@ -25,10 +30,15 @@ const AdminUsersPage = () => {
     fetchUsers();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+  const openDeleteModal = (id) => {
+    setUserToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (userToDelete) {
       try {
-        const res = await deleteUser(id);
+        const res = await deleteUser(userToDelete);
         if (res.success) {
           fetchUsers();
         }
@@ -119,7 +129,7 @@ const AdminUsersPage = () => {
                       <Link to={`/admin/users/${user.id}`} className="text-secondary hover:text-secondary font-medium text-sm">
                         View
                       </Link>
-                      <button onClick={() => handleDelete(user.id)} className="text-red-400 hover:text-red-300 font-medium text-sm">
+                      <button onClick={() => openDeleteModal(user.id)} className="text-red-400 hover:text-red-300 font-medium text-sm">
                         Delete
                       </button>
                     </td>
@@ -137,6 +147,16 @@ const AdminUsersPage = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        message="Are you sure you want to delete this user? This action cannot be undone and will permanently remove their data from the system."
+        confirmText="Delete User"
+        isDanger={true}
+      />
     </div>
   );
 };

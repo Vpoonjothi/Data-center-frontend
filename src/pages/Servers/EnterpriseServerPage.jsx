@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ENTERPRISE_PRICING } from '../../constants/pricingData';
 import { getOffers, submitEnquiry } from '../../services/api';
-import ContactCTASection from '../../components/sections/ContactCTASection';
 import { AuthContext } from '../../context/AuthContext';
 import { ContentContext } from '../../context/ContentContext';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
@@ -38,6 +37,7 @@ const EnterpriseServerPage = () => {
   const [os, setOs] = useState(ENTERPRISE_PRICING.OS[0]);
   const [backup, setBackup] = useState(false);
   const [isOsDropdownOpen, setIsOsDropdownOpen] = useState(false);
+  const [isBandwidthDropdownOpen, setIsBandwidthDropdownOpen] = useState(false);
 
   const [message, setMessage] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -118,7 +118,7 @@ const EnterpriseServerPage = () => {
 
   const handleSubmit = async (requestAction) => {
     if (!user) {
-      navigate('/login', { state: { from: location.pathname } });
+      navigate('/signup', { state: { from: location.pathname } });
       return;
     }
 
@@ -259,7 +259,7 @@ const EnterpriseServerPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#020817] pt-20">
+    <div className="min-h-screen bg-[#020817]">
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden border-b border-gray-800">
         <div className="absolute inset-0 bg-emerald-900/10 blur-[100px] pointer-events-none"></div>
@@ -394,19 +394,47 @@ const EnterpriseServerPage = () => {
                 </div>
 
                 {/* Bandwidth Selection */}
-                <div>
+                <div className="relative z-[50]">
                   <label className="block text-gray-400 font-medium text-sm mb-2">Bandwidth</label>
-                  <select 
-                    value={bandwidth.label}
-                    onChange={(e) => setBandwidth(ENTERPRISE_PRICING.Bandwidth.find(b => b.label === e.target.value))}
-                    className="w-full bg-[#1e293b] border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-secondary transition-colors appearance-none text-sm font-medium"
+                  
+                  {/* Custom Dropdown Trigger */}
+                  <div 
+                    className="w-full bg-[#1e293b] border border-gray-700 hover:border-secondary text-white rounded-lg px-4 py-3 cursor-pointer flex justify-between items-center transition-colors text-sm"
+                    onClick={() => setIsBandwidthDropdownOpen(!isBandwidthDropdownOpen)}
                   >
-                    {ENTERPRISE_PRICING.Bandwidth.map(opt => (
-                      <option key={opt.label} value={opt.label}>
-                        {opt.label} (+₹{opt.price}/mo)
-                      </option>
-                    ))}
-                  </select>
+                    <span className="font-medium">{bandwidth.label} <span className={bandwidth.price === 0 ? 'text-emerald-400' : 'text-blue-400'}>{bandwidth.price > 0 ? `(+₹${bandwidth.price}/mo)` : '(Free)'}</span></span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isBandwidthDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+
+                  {/* Custom Dropdown Menu */}
+                  <AnimatePresence>
+                    {isBandwidthDropdownOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute z-50 w-full mt-2 bg-[#0f172a] border border-gray-700 rounded-lg shadow-2xl max-h-80 overflow-y-auto overflow-x-hidden custom-scrollbar p-2"
+                      >
+                        {ENTERPRISE_PRICING.Bandwidth.map(opt => (
+                          <div 
+                            key={opt.label}
+                            onClick={() => { setBandwidth(opt); setIsBandwidthDropdownOpen(false); }}
+                            className={`px-3 py-2.5 rounded-md cursor-pointer flex justify-between items-center transition-colors text-sm mb-1 last:mb-0 ${bandwidth.label === opt.label ? 'bg-secondary/20 text-secondary' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
+                          >
+                            <span className="font-medium">{opt.label}</span>
+                            {opt.price === 0 ? (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-400/10">FREE</span>
+                            ) : (
+                              <span className="text-xs text-blue-400 font-semibold">+₹{opt.price}/mo</span>
+                            )}
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Backup Checkbox */}
@@ -617,74 +645,54 @@ const EnterpriseServerPage = () => {
                 </div>
               ) : (
                 <div className="mt-6 space-y-4">
-                  {!user ? (
-                    <div className="text-center p-6 bg-slate-900/50 border border-gray-800 rounded-xl">
-                      <h3 className="text-lg font-bold text-white mb-2">Login Required</h3>
-                      <p className="text-gray-400 text-sm mb-4">Please log in to your account to request a quote or place an order.</p>
-                      <button 
-                        onClick={() => navigate('/login', { state: { from: location.pathname } })}
-                        className="px-6 py-2.5 bg-secondary hover:bg-accent text-white rounded-lg font-bold transition-colors w-full"
-                      >
-                        Log In
-                      </button>
+                  {user ? (
+                    <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-emerald-100 flex flex-col gap-1">
+                      <p className="text-sm">Requesting as: <strong className="text-white">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
+                      <p className="text-xs text-gray-500 mt-1 italic">Your account information will be automatically used for this request.</p>
                     </div>
                   ) : (
-                    <>
-                      <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-emerald-100 flex flex-col gap-1">
-                        <p className="text-sm">Requesting as: <strong className="text-white">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
-                        <p className="text-xs text-gray-500 mt-1 italic">Your account information will be automatically used for this request.</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Quantity</label>
-                        <input 
-                          type="number" 
-                          min="1"
-                          value={quantity}
-                          onChange={(e) => setQuantity(e.target.value)}
-                          className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-secondary transition-colors"
-                          placeholder="1"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Additional Requirements / Notes</label>
-                        <textarea 
-                          value={message}
-                          onChange={(e) => setMessage(e.target.value)}
-                          className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-secondary transition-colors h-24 resize-none"
-                          placeholder="Tell us about your requirements..."
-                        ></textarea>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                        <button 
-                          onClick={() => handleSubmit('REQUEST_QUOTE')}
-                          disabled={isSubmitting}
-                          className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors border border-slate-700 disabled:opacity-50 text-sm"
-                        >
-                          {isSubmitting ? 'Processing...' : 'Request Quote'}
-                        </button>
-                        <button 
-                          onClick={() => handleSubmit('DIRECT_ORDER')}
-                          disabled={isSubmitting}
-                          className="flex-1 py-3 px-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold transition-colors shadow-lg shadow-secondary/25 disabled:opacity-50 text-sm"
-                        >
-                          {isSubmitting ? 'Processing...' : 'Order Now'}
-                        </button>
-                      </div>
-                    </>
+                    <div className="bg-slate-900/50 border border-gray-800 p-4 rounded-xl flex flex-col gap-1">
+                      <p className="text-sm text-gray-300">You will be asked to <strong className="text-white">create an account</strong> or log in before completing this request.</p>
+                    </div>
                   )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Quantity</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-secondary transition-colors"
+                      placeholder="1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Additional Requirements / Notes</label>
+                    <textarea 
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-secondary transition-colors h-24 resize-none"
+                      placeholder="Tell us about your requirements..."
+                    ></textarea>
+                  </div>
+
+                  <div className="pt-2">
+                    <button 
+                      onClick={() => handleSubmit('REQUEST_QUOTE')}
+                      disabled={isSubmitting}
+                      className="w-full py-3 px-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold transition-colors shadow-lg shadow-secondary/25 disabled:opacity-50 text-sm"
+                    >
+                      {isSubmitting ? 'Processing...' : 'Request Quote'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
       </section>
-
-
-      {/* Ready to Deploy CTA */}
-      <ContactCTASection />
 
     </div>
   );

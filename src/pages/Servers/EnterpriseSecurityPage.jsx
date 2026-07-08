@@ -17,7 +17,7 @@ const EnterpriseSecurityPage = () => {
   }, []);
 
   return (
-    <div className="bg-[#020817] min-h-screen pt-24 pb-12 overflow-hidden relative">
+    <div className="bg-[#020817] min-h-screen pb-12 overflow-hidden relative">
       
       {/* Floating Background Icons */}
       <div className="absolute inset-0 pointer-events-none z-0">

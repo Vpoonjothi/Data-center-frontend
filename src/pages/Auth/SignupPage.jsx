@@ -278,9 +278,9 @@ const SignupPage = () => {
                 <div className="ml-3 text-sm">
                   <span className="text-slate-400">
                     I have read and agree to the{' '}
-                    <Link to="/terms-of-service" className="font-medium text-secondary hover:text-secondary transition-colors">Terms of Service</Link>
+                    <Link to="/terms-of-service" target="_blank" rel="noopener noreferrer" className="font-medium text-secondary hover:text-secondary transition-colors">Terms of Service</Link>
                     {' '}and{' '}
-                    <Link to="/privacy-policy" className="font-medium text-secondary hover:text-secondary transition-colors">Privacy Policy</Link>.
+                    <Link to="/privacy-policy" target="_blank" rel="noopener noreferrer" className="font-medium text-secondary hover:text-secondary transition-colors">Privacy Policy</Link>.
                   </span>
                 </div>
               </label>

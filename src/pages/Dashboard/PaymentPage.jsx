@@ -111,7 +111,7 @@ const PaymentPage = () => {
         amount: orderData.amount,
         currency: orderData.currency,
         name: 'Greenleaf Data Center',
-        description: `Payment for Quote #${details.quote_number}`,
+        description: `Payment for Quote ${details.quote_number}`,
         order_id: orderData.id,
         handler: async function (response) {
           try {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import ContactCTASection from '../../components/sections/ContactCTASection';
 import { submitEnquiry } from '../../services/api';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
@@ -105,6 +104,10 @@ const ColocationPage = () => {
     setEstimatedTotal(total);
   }, [rackRequirement, selectedRack, selectedInternet, requireStaticIP]);
   const handleSubmit = async (requestAction) => {
+    if (!user) {
+      navigate('/signup', { state: { from: location.pathname } });
+      return;
+    }
     setSubmitting(true);
     setError('');
     
@@ -169,7 +172,7 @@ const ColocationPage = () => {
   return (
     <div className="bg-[#020817] min-h-screen pb-20">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
+      <section className="relative pt-12 pb-16 lg:pt-20 lg:pb-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1128] to-[#020817] z-0"></div>
         <div className="absolute top-0 right-0 w-1/2 h-full bg-[#1A801D]/5 blur-[120px] rounded-full pointer-events-none"></div>
         
@@ -470,64 +473,48 @@ const ColocationPage = () => {
                         {error}
                       </div>
                     )}
-                    {!user ? (
-                      <div className="text-center p-6 bg-slate-900/50 border border-gray-800 rounded-xl mt-4">
-                        <h3 className="text-lg font-bold text-white mb-2">Login Required</h3>
-                        <p className="text-gray-400 text-sm mb-4">Please log in to your account to request a quote or place an order.</p>
-                        <button 
-                          onClick={() => navigate('/login', { state: { from: location.pathname } })}
-                          className="px-6 py-2.5 bg-secondary hover:bg-accent text-white rounded-lg font-bold transition-colors w-full"
-                        >
-                          Log In
-                        </button>
+                    {user ? (
+                      <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-emerald-100 flex flex-col gap-1 mt-4">
+                        <p className="text-sm">Requesting as: <strong className="text-white">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
+                        <p className="text-xs text-gray-500 mt-1 italic">Your account information will be automatically used for this request.</p>
                       </div>
                     ) : (
-                      <>
-                        <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-emerald-100 flex flex-col gap-1 mt-4">
-                          <p className="text-sm">Requesting as: <strong className="text-white">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
-                          <p className="text-xs text-gray-500 mt-1 italic">Your account information will be automatically used for this request.</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-400 mb-1">Quantity (Servers/Racks)</label>
-                          <input 
-                            type="number" 
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-secondary transition-colors"
-                            placeholder="1"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-400 mb-1">Additional Requirements / Notes</label>
-                          <textarea 
-                            value={message} 
-                            onChange={(e) => setMessage(e.target.value)} 
-                            placeholder="Tell us about your requirements..." 
-                            className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y h-24"
-                          ></textarea>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                          <button 
-                            onClick={() => handleSubmit('REQUEST_QUOTE')}
-                            disabled={submitting}
-                            className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 text-sm border border-slate-700"
-                          >
-                            {submitting ? 'Processing...' : 'Request Quote'}
-                          </button>
-                          <button 
-                            onClick={() => handleSubmit('DIRECT_ORDER')}
-                            disabled={submitting}
-                            className="flex-1 bg-secondary hover:bg-accent text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 text-sm shadow-lg shadow-secondary/25"
-                          >
-                            {submitting ? 'Processing...' : 'Order Now'}
-                          </button>
-                        </div>
-                      </>
+                      <div className="bg-slate-900/50 border border-gray-800 p-4 rounded-xl flex flex-col gap-1 mt-4 mb-4">
+                        <p className="text-sm text-gray-300">You will be asked to <strong className="text-white">create an account</strong> or log in before completing this request.</p>
+                      </div>
                     )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Quantity (Servers/Racks)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        className="w-full bg-[#020817] border border-gray-800 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-secondary transition-colors"
+                        placeholder="1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-1">Additional Requirements / Notes</label>
+                      <textarea 
+                        value={message} 
+                        onChange={(e) => setMessage(e.target.value)} 
+                        placeholder="Tell us about your requirements..." 
+                        className="w-full bg-[#020817] border border-gray-800 text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-secondary transition-colors resize-y h-24"
+                      ></textarea>
+                    </div>
+                    
+                    <div className="pt-2">
+                      <button 
+                        onClick={() => handleSubmit('REQUEST_QUOTE')}
+                        disabled={submitting}
+                        className="w-full bg-secondary hover:bg-accent text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50 text-sm shadow-lg shadow-secondary/25"
+                      >
+                        {submitting ? 'Processing...' : 'Request Quote'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -537,9 +524,6 @@ const ColocationPage = () => {
         </div>
       </section>
 
-
-      {/* Ready to Deploy CTA */}
-      <ContactCTASection />
     </div>
   );
 };

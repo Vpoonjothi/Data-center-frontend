@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getComplianceLogs, getAuditLogs } from '../../services/adminApi';
 import { motion } from 'framer-motion';
 import Pagination from '../../components/common/Pagination';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const Step = ({ title, status, date }) => {
   const isCompleted = status === 'completed';
@@ -90,6 +92,105 @@ const AdminComplianceLogsPage = () => {
     }
   };
 
+  const downloadAuditLogsCSV = () => {
+    if (!auditLogs || auditLogs.length === 0) return;
+    
+    // Create CSV header
+    const headers = ['Timestamp', 'Action', 'Entity Type', 'Entity ID', 'Target User', 'Target User Email', 'Action By', 'Action By Email', 'Details'];
+    
+    const csvRows = [headers.join(',')];
+    
+    auditLogs.forEach(log => {
+      const timestamp = new Date(log.created_at).toLocaleString().replace(/,/g, '');
+      const action = log.action || '';
+      const entityType = log.entity_type || '';
+      const entityId = log.entity_id || '';
+      const targetUserName = log.target_user?.name || '';
+      const targetUserEmail = log.target_user?.email || '';
+      const actionByName = log.action_by?.name || 'System';
+      const actionByEmail = log.action_by?.email || '';
+      const details = log.details ? JSON.stringify(log.details).replace(/"/g, '""') : '';
+      
+      const row = [
+        `"${timestamp}"`,
+        `"${action}"`,
+        `"${entityType}"`,
+        `"${entityId}"`,
+        `"${targetUserName}"`,
+        `"${targetUserEmail}"`,
+        `"${actionByName}"`,
+        `"${actionByEmail}"`,
+        `"${details}"`
+      ];
+      csvRows.push(row.join(','));
+    });
+    
+    const csvString = csvRows.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Greenleaf_System_Logs_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const downloadAuditLogsPDF = () => {
+    if (!auditLogs || auditLogs.length === 0) return;
+    const doc = new jsPDF();
+    doc.text('System Logs & Audit Trail', 14, 15);
+    
+    const tableColumn = ["Timestamp", "Action", "Target", "Action By", "Details"];
+    const tableRows = [];
+    
+    auditLogs.forEach(log => {
+      const timestamp = new Date(log.created_at).toLocaleString();
+      const target = log.target_user ? log.target_user.name : (log.entity_type + (log.entity_id ? ` ${log.entity_id}` : ''));
+      const actionBy = log.action_by ? log.action_by.name : 'System';
+      const details = log.details ? JSON.stringify(log.details).substring(0, 50) : '';
+      
+      tableRows.push([timestamp, log.action, target, actionBy, details]);
+    });
+    
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [16, 185, 129] }
+    });
+    
+    doc.save(`Greenleaf_System_Logs_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const downloadWorkflowsPDF = () => {
+    if (!quotes || quotes.length === 0) return;
+    const doc = new jsPDF();
+    doc.text('Compliance Workflows', 14, 15);
+    
+    const tableColumn = ["Quote ID", "User", "Status", "Created", "KYC", "Payment"];
+    const tableRows = [];
+    
+    quotes.forEach(quote => {
+      const date = new Date(quote.createdAt).toLocaleDateString();
+      const user = quote.user?.name || 'N/A';
+      const kyc = quote.KycVerification?.kyc_consent ? 'Yes' : 'No';
+      const payment = (quote.payments && quote.payments.some(p => p.payment_terms_accepted)) ? 'Yes' : 'No';
+      
+      tableRows.push([quote.quote_number, user, quote.status, date, kyc, payment]);
+    });
+    
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [16, 185, 129] }
+    });
+    
+    doc.save(`Greenleaf_Workflows_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
@@ -102,8 +203,8 @@ const AdminComplianceLogsPage = () => {
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 md:gap-0 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Compliance & Consent Audit</h1>
-          <p className="text-sm md:text-base text-slate-400 mt-2">Track the end-to-end workflow progress of all enterprise quotes.</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Overall Logs & Workflows</h1>
+          <p className="text-sm md:text-base text-slate-400 mt-2">Track all system actions, audit logs, and quote workflows.</p>
         </div>
         <div className="flex gap-2 bg-[#020817] p-1 rounded-xl border border-slate-800 self-start md:self-auto w-full md:w-auto overflow-x-auto">
           <button 
@@ -127,108 +228,98 @@ const AdminComplianceLogsPage = () => {
           const currentItems = quotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
           
           return (
-            <>
-              {currentItems.map((quote, idx) => {
-          const isQuoteCompleted = quote.status !== 'pending' && quote.status !== 'rejected';
-          const isQuoteRejected = quote.status === 'rejected';
-          const hasKycConsent = quote.KycVerification?.kyc_consent;
-          const hasPaymentConsent = quote.payments && quote.payments.some(p => p.payment_terms_accepted);
-          const isActive = quote.status === 'active';
-
-          return (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              key={quote.id} 
-              className="bg-[#0b132b] border border-slate-800 rounded-2xl p-8 shadow-xl hover:border-slate-700 transition-colors"
-            >
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 border-b border-slate-800/50 pb-6">
-                <div>
-                  <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                    <span className="text-emerald-500">Quote #{quote.quote_number}</span>
-                  </h2>
-                  <div className="text-sm text-slate-400 mt-2 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span className="text-slate-200 font-medium">{quote.user?.name}</span>
-                    <span className="text-slate-600">•</span>
-                    <span>{quote.user?.email}</span>
-                  </div>
-                </div>
-                <div className="mt-4 md:mt-0 text-left md:text-right flex flex-col md:items-end">
-                  <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${getStatusColor(quote.status)}`}>
-                    {quote.status}
-                  </span>
-                  <div className="text-xs text-slate-500 mt-3 font-mono bg-slate-900/50 px-3 py-1 rounded border border-slate-800">
-                    Created: {new Date(quote.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
+            <div className="space-y-4">
+              <div className="flex justify-end mb-4">
+                <button 
+                  onClick={downloadWorkflowsPDF}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-500/20"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download PDF
+                </button>
               </div>
 
-              <div className="relative pt-2 px-2 md:px-6">
-                {/* Responsive horizontal scroll for small screens */}
-                <div className="overflow-x-auto pb-4 custom-scrollbar">
-                  <div className="flex items-start justify-between min-w-[600px] relative">
-                    <Step 
-                      title="Registration" 
-                      status={quote.user?.terms_accepted ? 'completed' : 'pending'} 
-                      date={quote.user?.terms_accepted_at} 
-                    />
-                    <Connector active={isQuoteCompleted} />
-                    
-                    <Step 
-                      title="Quote Sent" 
-                      status={isQuoteCompleted ? 'completed' : isQuoteRejected ? 'failed' : 'pending'} 
-                      date={isQuoteCompleted ? quote.createdAt : null} 
-                    />
-                    <Connector active={hasKycConsent} />
-                    
-                    <Step 
-                      title="KYC Consent" 
-                      status={hasKycConsent ? 'completed' : 'pending'} 
-                      date={quote.KycVerification?.kyc_consent_at} 
-                    />
-                    <Connector active={hasPaymentConsent} />
-                    
-                    <Step 
-                      title="Payment Terms" 
-                      status={hasPaymentConsent ? 'completed' : 'pending'} 
-                      date={quote.payments?.find(p => p.payment_terms_accepted)?.payment_terms_accepted_at} 
-                    />
-                    <Connector active={isActive} />
-                    
-                    <Step 
-                      title="Activation" 
-                      status={isActive ? 'completed' : 'pending'} 
-                      date={isActive ? quote.updatedAt : null} 
-                    />
-                  </div>
+              <div className="bg-[#0a1128] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto md:overflow-visible">
+                  <table className="w-full text-left text-sm border-collapse block md:table">
+                    <thead className="hidden md:table-header-group">
+                      <tr className="bg-[#020817] text-slate-400 uppercase tracking-wider text-xs font-semibold border-b border-slate-800">
+                        <th className="py-4 px-6">Quote ID</th>
+                        <th className="py-4 px-6">User</th>
+                        <th className="py-4 px-6">Status</th>
+                        <th className="py-4 px-6">Created At</th>
+                        <th className="py-4 px-6">KYC</th>
+                        <th className="py-4 px-6">Payment</th>
+                      </tr>
+                    </thead>
+                    <tbody className="block md:table-row-group divide-y md:divide-y divide-slate-800">
+                      {currentItems.map((quote) => {
+                        const hasKycConsent = quote.KycVerification?.kyc_consent;
+                        const hasPaymentConsent = quote.payments && quote.payments.some(p => p.payment_terms_accepted);
+                        
+                        return (
+                          <tr key={quote.id} className="block md:table-row bg-[#020817] md:bg-transparent border border-slate-800 md:border-b md:border-t-0 md:border-x-0 rounded-xl md:rounded-none mb-4 md:mb-0 p-4 md:p-0 hover:bg-white/[0.02] transition-colors text-slate-300 relative">
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 whitespace-nowrap text-emerald-400 font-bold">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Quote ID</span>
+                              {quote.quote_number}
+                            </td>
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">User</span>
+                              <div className="flex flex-col">
+                                <span className="text-white font-medium">{quote.user?.name}</span>
+                                <span className="text-xs text-slate-500">{quote.user?.email}</span>
+                              </div>
+                            </td>
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Status</span>
+                              <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider border ${getStatusColor(quote.status)}`}>
+                                {quote.status}
+                              </span>
+                            </td>
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-slate-400 font-mono text-xs">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Created At</span>
+                              {new Date(quote.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">KYC Consent</span>
+                              {hasKycConsent ? (
+                                <span className="text-emerald-400 flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Yes</span>
+                              ) : (
+                                <span className="text-slate-500">Pending</span>
+                              )}
+                            </td>
+                            <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6">
+                              <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Payment Consent</span>
+                              {hasPaymentConsent ? (
+                                <span className="text-emerald-400 flex items-center gap-1"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Yes</span>
+                              ) : (
+                                <span className="text-slate-500">Pending</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {quotes.length === 0 && (
+                        <tr className="block md:table-row">
+                          <td colSpan="6" className="block md:table-cell py-8 text-center text-slate-500">
+                            No compliance workflows found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </motion.div>
-          );
-        })}
-        
-        {quotes.length > 0 && (
-          <Pagination 
-            currentPage={currentPage} 
-            totalPages={Math.ceil(quotes.length / itemsPerPage)} 
-            onPageChange={setCurrentPage} 
-          />
-        )}
-        
-        {quotes.length === 0 && (
-          <div className="bg-[#0b132b] border border-slate-800 rounded-2xl p-12 text-center">
-            <svg className="w-16 h-16 text-slate-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="text-xl font-bold text-white mb-2">No Compliance Records Found</h3>
-            <p className="text-slate-400">There are no quotes or compliance workflows to display.</p>
-          </div>
-        )}
-            </>
+              {quotes.length > 0 && (
+                <Pagination 
+                  currentPage={currentPage} 
+                  totalPages={Math.ceil(quotes.length / itemsPerPage)} 
+                  onPageChange={setCurrentPage} 
+                />
+              )}
+            </div>
           );
         })()}
 
@@ -237,8 +328,29 @@ const AdminComplianceLogsPage = () => {
         const currentItems = auditLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
         return (
-          <div className="bg-[#0a1128] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-            <div className="overflow-x-auto md:overflow-visible">
+          <div className="space-y-4">
+            <div className="flex justify-end mb-4 gap-2">
+              <button 
+                onClick={downloadAuditLogsPDF}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-500/20"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download PDF
+              </button>
+              <button 
+                onClick={downloadAuditLogsCSV}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download CSV
+              </button>
+            </div>
+            <div className="bg-[#0a1128] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto md:overflow-visible">
               <table className="w-full text-left text-sm border-collapse block md:table">
                 <thead className="hidden md:table-header-group">
                   <tr className="bg-[#020817] text-slate-400 uppercase tracking-wider text-xs font-semibold border-b border-slate-800">
@@ -306,6 +418,7 @@ const AdminComplianceLogsPage = () => {
               totalPages={totalPages} 
               onPageChange={setCurrentPage} 
             />
+          </div>
           </div>
         );
       })()}

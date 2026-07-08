@@ -173,7 +173,7 @@ const InfrastructureSection = () => {
   };
 
   return (
-    <section className="py-24 bg-transparent relative overflow-hidden border-t border-gray-800">
+    <section className="py-10 lg:py-24 bg-transparent relative overflow-hidden border-t border-gray-800">
       
       {/* Background Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-900/20 blur-[120px] pointer-events-none rounded-full" />

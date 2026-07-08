@@ -1,9 +1,10 @@
 import React, { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { AdminAuthContext } from '../context/AdminAuthContext';
 
 const AdminProtectedRoute = ({ children }) => {
   const { admin, loading } = useContext(AdminAuthContext);
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -14,6 +15,9 @@ const AdminProtectedRoute = ({ children }) => {
   }
 
   if (!admin) {
+    if (location.pathname.includes('/superadmin')) {
+      return <Navigate to="/superadmin/login" replace />;
+    }
     return <Navigate to="/admin/login" replace />;
   }
 

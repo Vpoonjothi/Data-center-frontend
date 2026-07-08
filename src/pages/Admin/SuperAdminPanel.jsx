@@ -183,7 +183,7 @@ const SuperAdminPanel = () => {
                   <tr key={user.id} className="block md:table-row bg-[#020817] md:bg-transparent border border-gray-800 md:border-b md:border-t-0 md:border-x-0 rounded-xl md:rounded-none mb-4 md:mb-0 p-4 md:p-0 hover:bg-gray-800/30 transition-colors relative">
                     <td className="block md:table-cell p-2 md:p-4 text-sm text-gray-400">
                       <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">ID</span>
-                      #{user.id}
+                      {user.id}
                     </td>
                     <td className="block md:table-cell p-2 md:p-4 text-sm font-medium text-white">
                       <span className="md:hidden text-xs text-gray-500 uppercase font-semibold block mb-1">Name</span>

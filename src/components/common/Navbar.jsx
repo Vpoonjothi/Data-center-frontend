@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthContext } from '../../context/AuthContext';
 import { useContext } from 'react';
+import NotificationBell from './NotificationBell';
 import { MAIN_NAVIGATION } from '../../constants/navigation';
 import { COMPANY_INFO } from '../../constants/companyInfo';
 
@@ -154,7 +155,7 @@ const Navbar = () => {
           
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3 pointer-events-none lg:pointer-events-auto">
               <div className="relative w-8 h-8 flex items-center justify-center">
                 <svg className="w-8 h-8 text-[#1A801D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
@@ -201,7 +202,8 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Toggle Button */}
-          <div className="flex lg:hidden items-center">
+          <div className="flex lg:hidden items-center gap-2">
+            {user && <NotificationBell isAdmin={false} />}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-gray-300 hover:text-white focus:outline-none p-2 bg-slate-900/50 rounded-lg border border-gray-800"

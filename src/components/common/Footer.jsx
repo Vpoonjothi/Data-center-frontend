@@ -26,16 +26,16 @@ const Footer = () => {
             <h4 className="text-lg font-heading font-semibold text-white mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm">
               {MAIN_NAVIGATION.filter(link => link.name !== 'Home' && link.name !== 'Contact').map(link => (
-                <li key={link.name}><Link to={link.path} className="hover:text-accent transition-colors">{link.name}</Link></li>
+                <li key={link.name}><Link to={link.path} onClick={() => window.scrollTo(0,0)} className="block py-1 hover:text-accent transition-colors">{link.name}</Link></li>
               ))}
             </ul>
           </div>
           <div>
             <h4 className="text-lg font-heading font-semibold text-white mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/privacy-policy" className="hover:text-accent transition-colors">Privacy Policy</Link></li>
-              <li><Link to="/terms-of-service" className="hover:text-accent transition-colors">Terms of Service</Link></li>
-              <li><Link to="/refund-policy" className="hover:text-accent transition-colors">Refund & Cancellation</Link></li>
+              <li><Link to="/privacy-policy" onClick={() => window.scrollTo(0,0)} className="block py-1 hover:text-accent transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms-of-service" onClick={() => window.scrollTo(0,0)} className="block py-1 hover:text-accent transition-colors">Terms of Service</Link></li>
+              <li><Link to="/refund-policy" onClick={() => window.scrollTo(0,0)} className="block py-1 hover:text-accent transition-colors">Refund & Cancellation</Link></li>
             </ul>
           </div>
           <div>

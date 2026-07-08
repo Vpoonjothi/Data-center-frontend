@@ -103,14 +103,7 @@ const ForgotPasswordPage = () => {
             </div>
           </form>
 
-          <div className="mt-8 text-center space-y-2">
-            <p className="text-sm text-slate-400">
-              Remember your password?{' '}
-              <Link to="/login" className="font-medium text-secondary hover:text-secondary transition-colors">
-                Sign in
-              </Link>
-            </p>
-          </div>
+          {/* Removed sign in link as requested */}
         </div>
       </motion.div>
     </div>

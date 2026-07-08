@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getUserById, updateUserStatus, deleteUser } from '../../services/adminApi';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const AdminUserDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -40,16 +42,18 @@ const AdminUserDetailsPage = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      try {
-        const res = await deleteUser(id);
-        if (res.success) {
-          navigate('/admin/users');
-        }
-      } catch (error) {
-        console.error(error);
+  const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const res = await deleteUser(id);
+      if (res.success) {
+        navigate('/admin/users');
       }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -80,7 +84,7 @@ const AdminUserDetailsPage = () => {
                 </svg>
               )}
             </h1>
-            <p className="text-gray-400 text-sm">{user.email} • Account #{user.id.toString().padStart(4, '0')}</p>
+            <p className="text-gray-400 text-sm">{user.email} • Account {user.id.toString().padStart(4, '0')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -274,6 +278,16 @@ const AdminUserDetailsPage = () => {
           </div>
         </motion.div>
       </div>
+
+      <ConfirmModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete User Account"
+        message="Are you absolutely sure you want to delete this user? This action cannot be undone and will permanently erase all associated data."
+        confirmText="Delete Account"
+        isDanger={true}
+      />
     </div>
   );
 };

@@ -52,6 +52,20 @@ const ContactPage = () => {
         description="Get in touch with our experts to discuss your data center needs." 
       />
       <div className="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="h-px bg-gray-300 w-12"></div>
+            <span className="text-[#166E18] font-bold text-sm tracking-wider uppercase">GET IN TOUCH</span>
+            <div className="h-px bg-gray-300 w-12"></div>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-heading font-extrabold text-[#0F172A]">Let's build something together.</h2>
+        </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
@@ -59,11 +73,6 @@ const ContactPage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="flex items-center gap-4 mb-4">
-              <div className="h-px bg-gray-300 w-12"></div>
-              <span className="text-[#166E18] font-bold text-sm tracking-wider uppercase">GET IN TOUCH</span>
-            </div>
-            <h2 className="text-3xl md:text-4xl font-heading font-extrabold mb-6 text-[#0F172A]">Let's build something together.</h2>
             <p className="text-[#64748B] mb-10 leading-relaxed text-lg">
               Whether you need a single rack or a custom built private suite, our team is ready to design the perfect solution for your enterprise.
             </p>

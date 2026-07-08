@@ -15,12 +15,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 );
 
-window.deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  window.deferredPrompt = e;
-  window.dispatchEvent(new Event('pwa-prompt-ready'));
-});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -42,6 +42,7 @@ const SubscriptionPlanSelector = ({ onChange }) => {
   }, [selectedId, customValue, customUnit, onChange]);
 
   const [isOpen, setIsOpen] = useState(false);
+  const [unitDropdownOpen, setUnitDropdownOpen] = useState(false);
   const selectedOption = DURATION_OPTIONS.find(o => o.id === selectedId) || DURATION_OPTIONS[0];
 
   return (
@@ -125,27 +126,59 @@ const SubscriptionPlanSelector = ({ onChange }) => {
             exit={{ opacity: 0, height: 0, marginTop: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-[#1e293b]/50 border border-gray-700 rounded-xl p-5 flex flex-col sm:flex-row gap-4 items-end">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:gap-6 items-start sm:items-end shadow-xl">
               <div className="flex-1 w-full">
-                <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Duration Value</label>
+                <label className="block text-[10px] font-bold text-emerald-400/80 mb-2 uppercase tracking-widest">Duration Value</label>
                 <input
                   type="number"
                   min="1"
                   value={customValue}
                   onChange={(e) => setCustomValue(parseInt(e.target.value) || 1)}
-                  className="w-full bg-[#020817] border border-gray-700 text-white font-bold text-lg rounded-lg px-4 py-3 focus:outline-none focus:border-secondary transition-colors"
+                  className="w-full bg-white/5 border border-white/10 hover:border-white/20 text-white font-bold text-lg rounded-xl px-4 py-3.5 focus:outline-none focus:border-emerald-500 focus:bg-white/10 focus:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all duration-300"
                 />
               </div>
-              <div className="flex-1 w-full">
-                <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wider">Unit</label>
-                <select
-                  value={customUnit}
-                  onChange={(e) => setCustomUnit(e.target.value)}
-                  className="w-full bg-[#020817] border border-gray-700 text-white font-bold text-lg rounded-lg px-4 py-3 focus:outline-none focus:border-secondary transition-colors appearance-none cursor-pointer"
-                >
-                  <option value="Months">Months</option>
-                  <option value="Years">Years</option>
-                </select>
+              <div className="flex-1 w-full relative">
+                <label className="block text-[10px] font-bold text-emerald-400/80 mb-2 uppercase tracking-widest">Unit</label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setUnitDropdownOpen(!unitDropdownOpen)}
+                    className="w-full bg-white/5 border border-white/10 hover:border-white/20 text-white font-bold text-lg rounded-xl px-4 py-3.5 focus:outline-none focus:border-emerald-500 focus:bg-white/10 focus:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all duration-300 flex justify-between items-center"
+                  >
+                    <span>{customUnit}</span>
+                    <span className="text-emerald-500/50">
+                      <svg className={`w-5 h-5 transition-transform duration-300 ${unitDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </button>
+
+                  <AnimatePresence>
+                    {unitDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute top-full left-0 right-0 mt-2 bg-[#0f172a] border border-white/10 rounded-xl overflow-hidden z-50 shadow-2xl ring-1 ring-black/50"
+                      >
+                        {['Months', 'Years'].map(unit => (
+                          <button
+                            key={unit}
+                            type="button"
+                            onClick={() => {
+                              setCustomUnit(unit);
+                              setUnitDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-white/10 transition-colors ${customUnit === unit ? 'text-emerald-400 font-bold bg-white/5' : 'text-gray-300 font-medium'}`}
+                          >
+                            {unit}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
               <div className="hidden sm:block flex-1">
                 {/* Spacer for layout */}

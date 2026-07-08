@@ -1,10 +1,12 @@
-const CACHE_NAME = 'admin-cache-v3';
+const CACHE_NAME = 'admin-cache-v4';
 
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.svg'
+  '/favicon.svg',
+  '/pwa-192x192.png',
+  '/pwa-512x512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -31,6 +33,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only intercept GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Only intercept http and https schemes (ignores chrome-extension:// etc)
+  if (!event.request.url.startsWith('http')) return;
+
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request).then((response) => {

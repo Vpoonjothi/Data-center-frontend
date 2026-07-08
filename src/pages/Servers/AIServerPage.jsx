@@ -86,6 +86,10 @@ const AIServerPage = () => {
 
   const handleSubmit = async (e, requestAction) => {
     e.preventDefault();
+    if (!user) {
+      navigate('/signup', { state: { from: location.pathname } });
+      return;
+    }
     setIsSubmitting(true);
     
     try {
@@ -142,7 +146,7 @@ const AIServerPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#020817] pt-20">
+    <div className="min-h-screen bg-[#020817]">
       
       {/* 1. Hero Section */}
       <section className="relative py-24 overflow-hidden border-b border-gray-800">
@@ -180,25 +184,7 @@ const AIServerPage = () => {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row justify-center gap-4"
           >
-            <button 
-              onClick={() => {
-                if (!user) {
-                  navigate('/login', { state: { from: location.pathname } });
-                  return;
-                }
-                scrollToForm();
-              }}
-              className="px-8 py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25 flex items-center justify-center gap-2"
-            >
-              Request Quote
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-            </button>
-            <Link 
-              to="/contact"
-              className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg transition-colors border border-slate-700 flex items-center justify-center"
-            >
-              Contact Sales
-            </Link>
+            
           </motion.div>
         </div>
       </section>
@@ -214,7 +200,13 @@ const AIServerPage = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className={`grid gap-8 ${
+            servers.length === 1 
+              ? 'grid-cols-1 max-w-sm mx-auto' 
+              : servers.length === 2
+                ? 'grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto'
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          }`}>
             {servers.map((server, index) => {
               const contractValue = server.monthly_price * billingDuration.durationMultiplier;
               const gst = contractValue * 0.18;
@@ -283,10 +275,6 @@ const AIServerPage = () => {
                   
                   <button 
                     onClick={() => {
-                      if (!user) {
-                        navigate('/login', { state: { from: location.pathname } });
-                        return;
-                      }
                       setActiveServer(server);
                       scrollToForm();
                     }}
@@ -338,18 +326,7 @@ const AIServerPage = () => {
               <p className="text-gray-400">Fill out the form below and our sales team will contact you shortly.</p>
             </div>
 
-            {!user ? (
-              <div className="text-center py-12">
-                <h3 className="text-xl font-bold text-white mb-4">Login Required</h3>
-                <p className="text-gray-400 mb-6">Please log in to your account to request a quote or place an order.</p>
-                <button 
-                  onClick={() => navigate('/login', { state: { from: location.pathname } })}
-                  className="px-8 py-3 bg-secondary hover:bg-accent text-white rounded-lg font-bold transition-colors"
-                >
-                  Log In
-                </button>
-              </div>
-            ) : isSubmitted ? (
+            {isSubmitted ? (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -364,11 +341,17 @@ const AIServerPage = () => {
             ) : (
               <form className="space-y-6">
                 
-                <div className="bg-emerald-900/20 border border-emerald-900/50 p-6 rounded-xl text-emerald-100 flex flex-col gap-2">
-                  <p className="text-sm">Requesting as: <strong className="text-white text-base">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
-                  <p className="text-sm text-emerald-300/70">{user.email} | {user.phone_number}</p>
-                  <p className="text-xs text-gray-500 mt-2 italic">Your account information will be automatically used for this request.</p>
-                </div>
+                {user ? (
+                  <div className="bg-emerald-900/20 border border-emerald-900/50 p-6 rounded-xl text-emerald-100 flex flex-col gap-2">
+                    <p className="text-sm">Requesting as: <strong className="text-white text-base">{user.name}</strong> <span className="text-gray-400">({user.company || 'No Company'})</span></p>
+                    <p className="text-sm text-emerald-300/70">{user.email} | {user.phone_number}</p>
+                    <p className="text-xs text-gray-500 mt-2 italic">Your account information will be automatically used for this request.</p>
+                  </div>
+                ) : (
+                  <div className="bg-slate-900/50 border border-gray-800 p-4 rounded-xl flex flex-col gap-1 mb-4">
+                    <p className="text-sm text-gray-300">You will be asked to <strong className="text-white">create an account</strong> or log in before completing this request.</p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -397,22 +380,14 @@ const AIServerPage = () => {
                   ></textarea>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <div className="pt-4">
                   <button 
                     type="button" 
                     onClick={(e) => handleSubmit(e, 'REQUEST_QUOTE')}
                     disabled={isSubmitting}
-                    className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg transition-colors border border-slate-700 disabled:opacity-50"
+                    className="w-full py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25 disabled:opacity-50"
                   >
                     {isSubmitting ? 'Processing...' : 'Request Quote'}
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={(e) => handleSubmit(e, 'DIRECT_ORDER')}
-                    disabled={isSubmitting}
-                    className="flex-1 py-4 bg-accent hover:bg-secondary text-white rounded-xl font-bold text-lg transition-colors shadow-lg shadow-secondary/25 disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Processing...' : 'Order Now'}
                   </button>
                 </div>
               </form>
@@ -434,10 +409,6 @@ const AIServerPage = () => {
             </Link>
             <button 
               onClick={() => {
-                if (!user) {
-                  navigate('/login', { state: { from: location.pathname } });
-                  return;
-                }
                 scrollToForm();
               }} 
               className="px-8 py-3 bg-emerald-800 text-white border border-emerald-700 hover:bg-emerald-700 rounded-lg font-bold transition-colors"

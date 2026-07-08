@@ -5,7 +5,7 @@ import DynamicContent from '../shared/DynamicContent';
 
 const HeroSection = () => {
   return (
-    <div className="relative bg-[#020617] text-white pt-24 pb-32 lg:pb-48 overflow-hidden">
+    <div className="relative bg-[#020617] text-white pt-12 pb-24 lg:pt-20 lg:pb-32 overflow-hidden">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -23,7 +23,7 @@ const HeroSection = () => {
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
-        <div className="lg:w-3/5 pt-12 lg:pt-20">
+        <div className="lg:w-3/5">
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

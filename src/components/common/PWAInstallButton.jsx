@@ -43,8 +43,10 @@ const PWAInstallButton = () => {
           className={`relative w-16 h-16 rounded-[1.25rem] group cursor-pointer shadow-[0_15px_35px_-10px_rgba(26,128,29,0.6)] hover:shadow-[0_20px_40px_-10px_rgba(26,128,29,0.8)] transition-shadow duration-500 ${!canInstall ? 'opacity-80' : ''}`}
           style={{ transformStyle: 'preserve-3d' }}
         >
-          <div 
-            className="absolute inset-0 w-full h-full transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:[transform:rotateY(180deg)]"
+          <motion.div 
+            animate={{ rotateY: [0, 0, 180, 180, 0] }}
+            transition={{ duration: 6, repeat: Infinity, times: [0, 0.4, 0.5, 0.9, 1], ease: "easeInOut" }}
+            className="absolute inset-0 w-full h-full"
             style={{ transformStyle: 'preserve-3d' }}
           >
             {/* Front Side: The Leaf App Icon */}
@@ -75,7 +77,7 @@ const PWAInstallButton = () => {
                 Install
               </span>
             </div>
-          </div>
+          </motion.div>
         </motion.button>
       </motion.div>
 

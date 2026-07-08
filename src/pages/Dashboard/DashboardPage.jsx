@@ -189,7 +189,7 @@ const DashboardPage = () => {
     <div className="bg-slate-950 text-slate-300 font-sans min-h-screen pb-20 pt-8">
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Enterprise Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white">My Profile</h1>
           <p className="mt-1 text-slate-400">Welcome back, {user?.name}. Here is your onboarding and infrastructure overview.</p>
         </div>
 
@@ -404,20 +404,25 @@ const DashboardPage = () => {
               
               <div className="space-y-4 mb-6">
                 {[
-                  { key: 'personal', label: 'Personal Information', done: completionStats.checks.personal },
-                  { key: 'business', label: 'Business Information', done: completionStats.checks.business },
-                  { key: 'address', label: 'Address Information', done: completionStats.checks.address },
-                  { key: 'service', label: 'Service Preferences', done: completionStats.checks.service },
-                  { key: 'kyc', label: 'KYC Verified', done: completionStats.checks.kyc },
-                  { key: 'payment', label: 'Payment Verified', done: completionStats.checks.payment }
+                  { key: 'personal', label: 'Personal Information', done: completionStats.checks.personal, path: '/dashboard/profile' },
+                  { key: 'business', label: 'Business Information', done: completionStats.checks.business, path: '/dashboard/profile' },
+                  { key: 'address', label: 'Address Information', done: completionStats.checks.address, path: '/dashboard/profile' },
+                  { key: 'service', label: 'Service Preferences', done: completionStats.checks.service, path: '/dashboard/profile' },
+                  { key: 'kyc', label: 'KYC Verified', done: completionStats.checks.kyc, path: '/dashboard/quotes' },
+                  { key: 'payment', label: 'Payment Verified', done: completionStats.checks.payment, path: '/dashboard/quotes' }
                 ].map(item => (
-                  <div key={item.key} className="flex items-center gap-3">
+                  <div 
+                    key={item.key} 
+                    onClick={() => navigate(item.path)}
+                    className="flex items-center gap-3 p-2 -mx-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors group"
+                  >
                     {item.done ? (
                       <svg className="w-5 h-5 text-secondary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     ) : (
-                      <div className="w-4 h-4 ml-0.5 mr-0.5 rounded border border-slate-700 bg-slate-950 shrink-0"></div>
+                      <div className="w-4 h-4 ml-0.5 mr-0.5 rounded border border-slate-700 group-hover:border-slate-500 bg-slate-950 shrink-0 transition-colors"></div>
                     )}
-                    <span className={`text-sm ${item.done ? 'text-slate-300' : 'text-slate-500'}`}>{item.label}</span>
+                    <span className={`text-sm flex-1 ${item.done ? 'text-slate-300' : 'text-slate-500 group-hover:text-slate-400'} transition-colors`}>{item.label}</span>
+                    <svg className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${item.done ? 'text-secondary' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </div>
                 ))}
               </div>

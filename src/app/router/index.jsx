@@ -248,6 +248,14 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    path: '/superadmin',
+    element: <Navigate to="/admin/superadmin" replace />
+  },
+  {
+    path: '/superadmin/*',
+    element: <Navigate to="/admin/superadmin" replace />
+  },
+  {
     path: '/admin',
     element: (
       <AdminAuthProvider>
@@ -275,7 +283,7 @@ export const router = createBrowserRouter([
       },
       {
         element: (
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <Outlet />
           </RoleProtectedRoute>
         ),
@@ -329,7 +337,7 @@ export const router = createBrowserRouter([
             element: <AdminPaymentsPage />
           },
           {
-            path: 'compliance',
+            path: 'logs',
             element: <AdminComplianceLogsPage />
           },
           {

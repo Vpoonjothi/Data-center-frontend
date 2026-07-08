@@ -5,6 +5,22 @@ const AboutUsSection = () => {
   return (
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center max-w-3xl mx-auto mb-16"
+        >
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="h-px bg-secondary w-12"></div>
+            <span className="text-[#166E18] font-bold text-sm tracking-wider uppercase">ABOUT GREENLEAF</span>
+            <div className="h-px bg-secondary w-12"></div>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-heading font-bold text-[#0F172A]">
+            Dedicated Infrastructure for Modern Workloads
+          </h2>
+        </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
@@ -12,13 +28,6 @@ const AboutUsSection = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="flex items-center gap-4 mb-4">
-              <div className="h-px bg-secondary w-12"></div>
-              <span className="text-[#166E18] font-bold text-sm tracking-wider uppercase">ABOUT GREENLEAF</span>
-            </div>
-            <h2 className="text-3xl md:text-4xl font-heading font-bold text-[#0F172A] mb-6">
-              Dedicated Infrastructure for Modern Workloads
-            </h2>
             <p className="text-[#64748B] text-lg leading-relaxed mb-6">
               Greenleaf is a specialized server provider dedicated to delivering uncompromising performance. We cut through the industry noise to focus on what matters most to your business: high-quality hardware, rock-solid reliability, and expert support that's there when you need it.
             </p>

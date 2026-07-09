@@ -13,7 +13,6 @@ const AdminSettingsPage = () => {
   // Profile State
   const [profile, setProfile] = useState({
     fullName: admin?.name || '',
-    username: admin?.username || '',
     email: admin?.email || '',
     phoneNumber: admin?.phone_number || '',
     avatar: admin?.avatar || null
@@ -30,7 +29,6 @@ const AdminSettingsPage = () => {
     if (admin) {
       setProfile({
         fullName: admin.name || '',
-        username: admin.username || '',
         email: admin.email || '',
         phoneNumber: admin.phone_number || '',
         avatar: admin.avatar || null
@@ -88,8 +86,19 @@ const AdminSettingsPage = () => {
   const handleProfileSave = (e) => {
     e.preventDefault();
     const errors = {};
-    if (profile.email && !profile.email.match(/^\S+@\S+\.\S+$/)) {
+    
+    if (!profile.fullName || profile.fullName.trim() === '') {
+      errors.fullName = "Full name is required";
+    }
+    
+    if (!profile.email || profile.email.trim() === '') {
+      errors.email = "Email is required";
+    } else if (!profile.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       errors.email = "Valid email format is required";
+    }
+    
+    if (profile.phoneNumber && !/^[0-9+\-\s()]+$/.test(profile.phoneNumber)) {
+      errors.phoneNumber = "Phone number can only contain numbers and basic symbols (+ -)";
     }
     
     if (Object.keys(errors).length > 0) {
@@ -98,9 +107,19 @@ const AdminSettingsPage = () => {
     }
     setValidationErrors({});
     
+    const hasChanged = 
+      profile.fullName !== (admin?.name || '') ||
+      profile.email !== (admin?.email || '') ||
+      profile.phoneNumber !== (admin?.phone_number || '');
+      
+    if (!hasChanged) {
+      showToast('ℹ️ No changes to save.', 'info');
+      return;
+    }
+    
     // Simulate API call initially, but we do the actual call in submitAuthAction or here if no auth needed.
     // If we need auth, we prompt. If we don't need auth, we can just save it.
-    if (profile.email !== (admin?.email || '') || profile.username !== (admin?.username || '')) {
+    if (profile.email !== (admin?.email || '')) {
        setCurrentPasswordPrompt({ show: true, action: 'profile' });
        return;
     }
@@ -114,7 +133,6 @@ const AdminSettingsPage = () => {
       const res = await updateAdminProfile({
         fullName: profile.fullName,
         email: profile.email,
-        username: profile.username,
         phoneNumber: profile.phoneNumber,
         avatar: profile.avatar
       });
@@ -135,7 +153,7 @@ const AdminSettingsPage = () => {
     e.preventDefault();
     const errors = {};
     if (!passwords.current) errors.current = "Current password is required";
-    if (passwords.new.length < 8) errors.new = "Minimum 8 characters required";
+    if (passwords.new.length < 4) errors.new = "Minimum 4 characters required";
     if (passwords.new !== passwords.confirm) errors.confirm = "Passwords do not match";
     
     if (Object.keys(errors).length > 0) {
@@ -159,6 +177,16 @@ const AdminSettingsPage = () => {
   };
 
   const handleNotificationsSave = async () => {
+    const hasChanged = 
+      notifications.email !== (admin?.email_notifications ?? true) ||
+      notifications.website !== (admin?.website_notifications ?? true) ||
+      notifications.browser !== (admin?.browser_notifications ?? false);
+
+    if (!hasChanged) {
+      showToast('ℹ️ No changes to save.', 'info');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await updateAdminNotifications(notifications);
@@ -221,11 +249,13 @@ const AdminSettingsPage = () => {
       <AnimatePresence>
         {toast && (
           <motion.div 
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className={`fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border ${
-              toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className={`fixed bottom-6 right-6 z-50 px-6 py-4 rounded-2xl flex items-center gap-3 shadow-2xl backdrop-blur-md border ${
+              toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+              : toast.type === 'info' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400'
+              : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
             }`}
           >
             <span className="font-medium text-sm">{toast.message}</span>
@@ -236,7 +266,7 @@ const AdminSettingsPage = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold mb-2">Admin Settings</h1>
+          <h1 className="text-3xl font-bold mb-2 text-white">Admin Settings</h1>
           <p className="text-gray-400">Manage your personal account settings.</p>
         </div>
 
@@ -248,7 +278,7 @@ const AdminSettingsPage = () => {
               <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
                 <User className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold">Profile</h2>
+              <h2 className="text-xl font-bold text-white">Profile</h2>
             </div>
             
             <form onSubmit={handleProfileSave} className="p-6 md:p-8">
@@ -283,43 +313,44 @@ const AdminSettingsPage = () => {
                 <div className="flex-1 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-400 mb-2">Full Name</label>
+                      <label className="block text-sm font-semibold text-gray-200 mb-2">Full Name</label>
                       <input 
-                        type="text" value={profile.fullName} onChange={e => setProfile({...profile, fullName: e.target.value})}
+                        type="text" value={profile.fullName} onChange={e => {
+                          const val = e.target.value.replace(/[0-9]/g, '');
+                          setProfile({...profile, fullName: val});
+                        }}
                         required
-                        className={`w-full bg-[#0a1128] border ${validationErrors.fullName ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors`}
+                        className={`w-full bg-[#0a1128] border ${validationErrors.fullName ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors text-white`}
                       />
                       {validationErrors.fullName && <p className="text-xs text-red-400 mt-1">{validationErrors.fullName}</p>}
                     </div>
+
                     <div>
-                      <label className="block text-sm font-semibold text-gray-400 mb-2">Username</label>
-                      <input 
-                        type="text" value={profile.username} onChange={e => setProfile({...profile, username: e.target.value})}
-                        className={`w-full bg-[#0a1128] border ${validationErrors.username ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors`}
-                      />
-                      {validationErrors.username && <p className="text-xs text-red-400 mt-1">{validationErrors.username}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-400 mb-2">Email Address</label>
+                      <label className="block text-sm font-semibold text-gray-200 mb-2">Email Address</label>
                       <input 
                         type="email" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})}
                         required
-                        className={`w-full bg-[#0a1128] border ${validationErrors.email ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors`}
+                        className={`w-full bg-[#0a1128] border ${validationErrors.email ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors text-white`}
                       />
                       {validationErrors.email && <p className="text-xs text-red-400 mt-1">{validationErrors.email}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-400 mb-2">Phone Number</label>
+                      <label className="block text-sm font-semibold text-gray-200 mb-2">Phone Number</label>
                       <input 
-                        type="tel" value={profile.phoneNumber} onChange={e => setProfile({...profile, phoneNumber: e.target.value})}
-                        className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors"
+                        type="tel" value={profile.phoneNumber} onChange={e => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setProfile({...profile, phoneNumber: val});
+                        }}
+                        maxLength={10}
+                        className={`w-full bg-[#0a1128] border ${validationErrors.phoneNumber ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500 transition-colors text-white`}
                       />
+                      {validationErrors.phoneNumber && <p className="text-xs text-red-400 mt-1">{validationErrors.phoneNumber}</p>}
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-400 mb-2">Role (Read Only)</label>
+                      <label className="block text-sm font-semibold text-gray-200 mb-2">Role (Read Only)</label>
                       <input 
                         type="text" value={admin?.role === 'superadmin' ? 'Super Administrator' : 'Administrator'} readOnly
-                        className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-gray-500 font-medium cursor-not-allowed"
+                        className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-gray-300 font-medium cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -339,7 +370,7 @@ const AdminSettingsPage = () => {
               <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
                 <Shield className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold">Security</h2>
+              <h2 className="text-xl font-bold text-white">Security</h2>
             </div>
             
             <form onSubmit={handleSecuritySave} className="p-6 md:p-8 flex flex-col md:flex-row gap-10">
@@ -409,53 +440,13 @@ const AdminSettingsPage = () => {
               <div className="w-full md:w-64 bg-white/5 border border-white/5 rounded-2xl p-6 h-fit shrink-0">
                 <h4 className="text-sm font-bold mb-4 uppercase tracking-wider text-gray-400">Requirements</h4>
                 <ul className="space-y-3 text-sm">
-                  <ReqItem isValid={passwords.new.length >= 8} text="Minimum 8 Characters" />
-                  <ReqItem isValid={/[A-Z]/.test(passwords.new)} text="Uppercase Letter" />
-                  <ReqItem isValid={/[a-z]/.test(passwords.new)} text="Lowercase Letter" />
-                  <ReqItem isValid={/[0-9]/.test(passwords.new)} text="Number" />
-                  <ReqItem isValid={/[^A-Za-z0-9]/.test(passwords.new)} text="Special Character" />
+                  <ReqItem isValid={passwords.new.length >= 4} text="Minimum 4 Characters" />
                 </ul>
               </div>
             </form>
           </section>
 
-          {/* 3. Notification Preferences */}
-          <section className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden">
-            <div className="p-6 md:p-8 border-b border-white/5 flex items-center gap-4 bg-gradient-to-r from-purple-900/10 to-transparent">
-              <div className="p-3 bg-purple-500/10 rounded-xl text-purple-400">
-                <Bell className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-bold">Notification Preferences</h2>
-            </div>
-            
-            <div className="p-6 md:p-8 max-w-2xl">
-              <div className="space-y-4">
-                <ToggleRow 
-                  label="Email Notifications" 
-                  description="Receive critical alerts and reports via email."
-                  checked={notifications.email} 
-                  onChange={() => setNotifications({...notifications, email: !notifications.email})} 
-                />
-                <ToggleRow 
-                  label="Website Notifications" 
-                  description="In-app alerts for system activities."
-                  checked={notifications.website} 
-                  onChange={() => setNotifications({...notifications, website: !notifications.website})} 
-                />
-                <ToggleRow 
-                  label="Browser Notifications" 
-                  description="Push notifications even when the app is closed."
-                  checked={notifications.browser} 
-                  onChange={() => setNotifications({...notifications, browser: !notifications.browser})} 
-                />
-              </div>
-              <div className="pt-8">
-                <button onClick={handleNotificationsSave} disabled={isSubmitting} className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-purple-900/20 disabled:opacity-50">
-                  Save Notification Preferences
-                </button>
-              </div>
-            </div>
-          </section>
+
 
           {/* 4. Account Information */}
           <section className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden">
@@ -463,7 +454,7 @@ const AdminSettingsPage = () => {
               <div className="p-3 bg-gray-500/10 rounded-xl text-gray-400">
                 <Info className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold">Account Information</h2>
+              <h2 className="text-xl font-bold text-white">Account Information</h2>
             </div>
             
             <div className="p-6 md:p-8">
@@ -502,7 +493,7 @@ const AdminSettingsPage = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setCurrentPasswordPrompt({show:false, action:null})} />
             <motion.div initial={{scale:0.95, opacity:0}} animate={{scale:1, opacity:1}} exit={{scale:0.95, opacity:0}} className="bg-[#0a1128] border border-white/10 rounded-2xl w-full max-w-md p-6 relative z-10 shadow-2xl">
-              <h3 className="text-xl font-bold mb-2 flex items-center gap-2"><Lock className="w-5 h-5 text-emerald-400"/> Authentication Required</h3>
+              <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-white"><Lock className="w-5 h-5 text-emerald-400"/> Authentication Required</h3>
               <p className="text-gray-400 text-sm mb-6">Please enter your current password to confirm these changes.</p>
               <input 
                 type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)}

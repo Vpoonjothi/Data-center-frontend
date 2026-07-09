@@ -312,7 +312,6 @@ const SuperAdminPanel = () => {
                     className="w-full bg-[#020817] border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-secondary transition-colors"
                   >
                     <option value="admin">Admin</option>
-                    <option value="superadmin">Superadmin</option>
                   </select>
                 </div>
                 <div className="pt-4 flex gap-3">
@@ -407,7 +406,6 @@ const SuperAdminPanel = () => {
                     className="w-full bg-[#020817] border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-secondary transition-colors disabled:opacity-50"
                   >
                     <option value="admin">Admin</option>
-                    <option value="superadmin">Superadmin</option>
                   </select>
                 </div>
                 <div className="pt-4 flex gap-3">

@@ -112,11 +112,7 @@ const AdminLoginPage = () => {
             </div>
           </div>
           
-          <div className="flex justify-end text-sm">
-            <a href="#" className="text-secondary hover:text-emerald-400 font-medium">
-              Forgot password?
-            </a>
-          </div>
+
           <button 
             type="submit" 
             disabled={loading}

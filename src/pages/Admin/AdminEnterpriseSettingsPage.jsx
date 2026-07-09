@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { updateContentBlock } from '../../services/adminApi';
+import { updateContentBlock, createContentBlock } from '../../services/adminApi';
 import { getContentBlocks } from '../../services/api';
 
 const AdminEnterpriseSettingsPage = () => {
@@ -63,7 +63,9 @@ const AdminEnterpriseSettingsPage = () => {
       for (const update of updates) {
         const block = blocks[update.key];
         if (block && block.id) {
-          await updateContentBlock(block.id, { key: update.key, type: 'text', value: update.value });
+          await updateContentBlock(block.id, { key: update.key, type: 'text', value: String(update.value) });
+        } else {
+          await createContentBlock({ key: update.key, type: 'text', value: String(update.value) });
         }
       }
 

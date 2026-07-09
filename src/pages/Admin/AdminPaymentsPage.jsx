@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Pagination from '../../components/common/Pagination';
+import DateFilter, { applyDateFilter } from '../../components/common/DateFilter';
 import { getAdminPayments } from '../../services/adminApi';
 
 const AdminPaymentsPage = () => {
@@ -7,6 +8,7 @@ const AdminPaymentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [dateFilter, setDateFilter] = useState({ type: 'all', value: '' });
 
   useEffect(() => {
     fetchPayments();
@@ -23,13 +25,20 @@ const AdminPaymentsPage = () => {
     }
   };
 
-  const totalPages = Math.ceil(payments.length / itemsPerPage);
-  const currentItems = payments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const filteredPayments = payments.filter(payment => applyDateFilter(payment.payment_date, dateFilter));
+
+  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+  const currentItems = filteredPayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-white">All Payments</h1>
+        <DateFilter 
+          filter={dateFilter} 
+          setFilter={setDateFilter} 
+          onFilterChange={() => setCurrentPage(1)} 
+        />
       </div>
 
       <div className="bg-[#0a1128] border border-gray-800 rounded-2xl overflow-hidden shadow-sm">

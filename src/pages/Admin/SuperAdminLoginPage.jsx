@@ -16,8 +16,8 @@ const SuperAdminLoginPage = () => {
   const navigate = useNavigate();
   const { admin, login } = useContext(AdminAuthContext);
 
-  if (admin) {
-    return <Navigate to="/admin" replace />;
+  if (admin?.role === 'superadmin') {
+    return <Navigate to="/admin/superadmin" replace />;
   }
 
   const handleSubmit = async (e) => {
@@ -112,11 +112,7 @@ const SuperAdminLoginPage = () => {
             </div>
           </div>
           
-          <div className="flex justify-end text-sm">
-            <a href="#" className="text-secondary hover:text-emerald-400 font-medium">
-              Forgot password?
-            </a>
-          </div>
+
           <button 
             type="submit" 
             disabled={loading}

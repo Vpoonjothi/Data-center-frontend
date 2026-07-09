@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getUsers, getEnquiries, getQuotes, getAdminKycVerifications, getAdminPayments, getAdminServices, getAdminDashboardStats } from '../../services/adminApi';
 
 const AdminDashboardPage = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalEnquiries: 0,
@@ -91,14 +92,14 @@ const AdminDashboardPage = () => {
   }
 
   const statCards = [
-    { title: 'Total Users', value: stats.totalUsers, icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-    { title: 'Pending Quotes', value: stats.pendingQuotes, icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-    { title: 'Pending KYC', value: stats.pendingKyc, icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
-    { title: 'Pending Payments', value: stats.pendingPayments, icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
-    { title: 'Active Servers', value: stats.totalActiveServers, icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01' },
-    { title: 'Suspended Servers', value: stats.suspendedServers, icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
-    { title: 'In Grace Period', value: stats.inGracePeriod, icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { title: 'Renewals Due (7d)', value: stats.renewalsDue, icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }
+    { title: 'Total Users', value: stats.totalUsers, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', trend: 'up', trendValue: '12%', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', link: '/admin/users' },
+    { title: 'Pending Quotes', value: stats.pendingQuotes, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', trend: 'up', trendValue: '5%', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+    { title: 'Pending KYC', value: stats.pendingKyc, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20', trend: 'down', trendValue: '2%', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+    { title: 'Pending Payments', value: stats.pendingPayments, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', trend: 'up', trendValue: '8%', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
+    { title: 'Active Servers', value: stats.totalActiveServers, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', trend: 'up', trendValue: '15%', icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01' },
+    { title: 'Suspended Servers', value: stats.suspendedServers, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', trend: 'down', trendValue: '1%', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
+    { title: 'In Grace Period', value: stats.inGracePeriod, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', trend: 'up', trendValue: '3%', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { title: 'Renewals Due (7d)', value: stats.renewalsDue, color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20', trend: 'up', trendValue: '10%', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }
   ];
 
   return (
@@ -110,18 +111,43 @@ const AdminDashboardPage = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="bg-[#0a1128] border border-gray-800 rounded-2xl p-6 relative overflow-hidden group"
+            onClick={() => stat.link && navigate(stat.link)}
+            className={`bg-[#0a1128]/80 backdrop-blur-xl border ${stat.border} rounded-3xl p-6 relative overflow-hidden group shadow-lg transition-all duration-300 ${stat.link ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(0,0,0,0.5)]' : ''}`}
           >
-            <div className="absolute -right-6 -top-6 w-24 h-24 bg-secondary/5 rounded-full blur-xl group-hover:bg-secondary/10 transition-colors"></div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[#020817] border border-gray-800 flex items-center justify-center text-secondary">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {/* Subtle Gradient Background */}
+            <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br from-transparent to-current ${stat.color}`}></div>
+            <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-500 ${stat.bg}`}></div>
+            
+            <div className="flex items-start justify-between mb-6 relative z-10">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner transition-transform group-hover:scale-110 duration-300 ${stat.bg} ${stat.color} ${stat.border}`}>
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={stat.icon} />
                 </svg>
               </div>
+              
+              {stat.trend === 'up' ? (
+                <div className="flex items-center gap-1 text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full text-xs font-bold">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" />
+                  </svg>
+                  {stat.trendValue}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-rose-400 bg-rose-400/10 px-2.5 py-1 rounded-full text-xs font-bold">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7 7" />
+                  </svg>
+                  {stat.trendValue}
+                </div>
+              )}
             </div>
-            <h3 className="text-gray-400 font-medium text-sm mb-1">{stat.title}</h3>
-            <div className="text-3xl font-bold text-white">{stat.value}</div>
+            
+            <div className="relative z-10">
+              <h3 className="text-gray-400 font-semibold text-sm mb-2 tracking-wide uppercase">{stat.title}</h3>
+              <div className="flex items-end gap-3">
+                <span className="text-4xl font-extrabold text-white tracking-tight">{stat.value}</span>
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>

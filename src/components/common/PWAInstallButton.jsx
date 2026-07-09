@@ -4,13 +4,37 @@ import { motion, AnimatePresence } from 'framer-motion';
 const PWAInstallButton = () => {
   const [canInstall, setCanInstall] = useState(!!window.deferredPrompt);
   const [showManualModal, setShowManualModal] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+  );
 
   useEffect(() => {
     const handlePromptReady = () => setCanInstall(true);
+    const handleAppInstalled = () => setIsInstalled(true);
+    
     window.addEventListener('pwa-prompt-ready', handlePromptReady);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Listen for display mode changes
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handleMediaQueryChange = (e) => {
+      if (e.matches) setIsInstalled(true);
+    };
+    
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleMediaQueryChange);
+    } else {
+      mediaQuery.addListener(handleMediaQueryChange); // Fallback for older browsers
+    }
 
     return () => {
       window.removeEventListener('pwa-prompt-ready', handlePromptReady);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleMediaQueryChange);
+      } else {
+        mediaQuery.removeListener(handleMediaQueryChange);
+      }
     };
   }, []);
 
@@ -24,8 +48,13 @@ const PWAInstallButton = () => {
     if (outcome === 'accepted') {
       window.deferredPrompt = null;
       setCanInstall(false);
+      setIsInstalled(true);
     }
   };
+
+  if (isInstalled) {
+    return null;
+  }
 
   return (
     <AnimatePresence>

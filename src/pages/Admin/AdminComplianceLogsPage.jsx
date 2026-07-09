@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getComplianceLogs, getAuditLogs } from '../../services/adminApi';
 import { motion } from 'framer-motion';
 import Pagination from '../../components/common/Pagination';
+import DateFilter, { applyDateFilter } from '../../components/common/DateFilter';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -70,6 +71,7 @@ const AdminComplianceLogsPage = () => {
   const [activeTab, setActiveTab] = useState('workflow');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [dateFilter, setDateFilter] = useState({ type: 'all', value: '' });
 
   useEffect(() => {
     fetchLogs();
@@ -92,16 +94,32 @@ const AdminComplianceLogsPage = () => {
     }
   };
 
+  const formatDetails = (details) => {
+    if (!details) return '';
+    if (typeof details === 'string') return details;
+    try {
+      const obj = typeof details === 'string' ? JSON.parse(details) : details;
+      return Object.entries(obj)
+        .map(([key, value]) => `${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${value}`)
+        .join(' | ');
+    } catch(e) {
+      return String(details);
+    }
+  };
+
   const downloadAuditLogsCSV = () => {
     if (!auditLogs || auditLogs.length === 0) return;
     
     // Create CSV header
-    const headers = ['Timestamp', 'Action', 'Entity Type', 'Entity ID', 'Target User', 'Target User Email', 'Action By', 'Action By Email', 'Details'];
+    const headers = ['Date', 'Time', 'Action', 'Entity', 'ID', 'User', 'User Email', 'Admin', 'Admin Email', 'Details'];
     
     const csvRows = [headers.join(',')];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
     auditLogs.forEach(log => {
-      const timestamp = new Date(log.created_at).toLocaleString().replace(/,/g, '');
+      const d = new Date(log.created_at);
+      const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+      const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
       const action = log.action || '';
       const entityType = log.entity_type || '';
       const entityId = log.entity_id || '';
@@ -109,10 +127,12 @@ const AdminComplianceLogsPage = () => {
       const targetUserEmail = log.target_user?.email || '';
       const actionByName = log.action_by?.name || 'System';
       const actionByEmail = log.action_by?.email || '';
-      const details = log.details ? JSON.stringify(log.details).replace(/"/g, '""') : '';
+      const detailsStr = formatDetails(log.details);
+      const details = detailsStr.replace(/"/g, '""');
       
       const row = [
-        `"${timestamp}"`,
+        `"${dateStr}"`,
+        `"${timeStr}"`,
         `"${action}"`,
         `"${entityType}"`,
         `"${entityId}"`,
@@ -201,12 +221,18 @@ const AdminComplianceLogsPage = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 md:gap-0 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Overall Logs & Workflows</h1>
-          <p className="text-sm md:text-base text-slate-400 mt-2">Track all system actions, audit logs, and quote workflows.</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Overall Logs</h1>
+          <p className="text-slate-400 text-sm">Monitor system workflows, quote progressions, and admin audit trails.</p>
         </div>
-        <div className="flex gap-2 bg-[#020817] p-1 rounded-xl border border-slate-800 self-start md:self-auto w-full md:w-auto overflow-x-auto">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <DateFilter 
+            filter={dateFilter} 
+            setFilter={setDateFilter} 
+            onFilterChange={() => setCurrentPage(1)} 
+          />
+          <div className="flex justify-center md:justify-start gap-2 bg-[#020817] p-1 rounded-xl border border-slate-800 w-full md:w-auto overflow-x-auto">
           <button 
             onClick={() => { setActiveTab('workflow'); setCurrentPage(1); }}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'workflow' ? 'bg-secondary text-[#020817]' : 'text-slate-400 hover:text-white'}`}
@@ -220,12 +246,14 @@ const AdminComplianceLogsPage = () => {
             System Logs
           </button>
         </div>
+        </div>
       </div>
 
       <div className="space-y-6">
         {activeTab === 'workflow' && (() => {
-          const totalPages = Math.ceil(quotes.length / itemsPerPage);
-          const currentItems = quotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+          const filteredQuotes = quotes.filter(quote => applyDateFilter(quote.createdAt || quote.created_at, dateFilter));
+          const totalPages = Math.ceil(filteredQuotes.length / itemsPerPage);
+          const currentItems = filteredQuotes.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
           
           return (
             <div className="space-y-4">
@@ -301,7 +329,7 @@ const AdminComplianceLogsPage = () => {
                           </tr>
                         );
                       })}
-                      {quotes.length === 0 && (
+                      {filteredQuotes.length === 0 && (
                         <tr className="block md:table-row">
                           <td colSpan="6" className="block md:table-cell py-8 text-center text-slate-500">
                             No compliance workflows found.
@@ -312,10 +340,10 @@ const AdminComplianceLogsPage = () => {
                   </table>
                 </div>
               </div>
-              {quotes.length > 0 && (
+              {totalPages > 1 && (
                 <Pagination 
                   currentPage={currentPage} 
-                  totalPages={Math.ceil(quotes.length / itemsPerPage)} 
+                  totalPages={totalPages} 
                   onPageChange={setCurrentPage} 
                 />
               )}
@@ -324,8 +352,9 @@ const AdminComplianceLogsPage = () => {
         })()}
 
         {activeTab === 'audit' && (() => {
-        const totalPages = Math.ceil(auditLogs.length / itemsPerPage);
-        const currentItems = auditLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+          const filteredAuditLogs = auditLogs.filter(log => applyDateFilter(log.created_at, dateFilter));
+          const totalPages = Math.ceil(filteredAuditLogs.length / itemsPerPage);
+          const currentItems = filteredAuditLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
         return (
           <div className="space-y-4">
@@ -397,9 +426,9 @@ const AdminComplianceLogsPage = () => {
                           </div>
                         ) : 'System'}
                       </td>
-                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-xs text-slate-400 md:max-w-xs break-all md:truncate" title={log.details ? JSON.stringify(log.details) : ''}>
+                      <td className="block md:table-cell py-2 md:py-4 px-2 md:px-6 text-xs text-slate-400 md:max-w-xs break-all md:truncate" title={log.details ? formatDetails(log.details) : ''}>
                         <span className="md:hidden text-[10px] text-gray-500 uppercase font-semibold block mb-1">Details</span>
-                        {log.details ? JSON.stringify(log.details) : '-'}
+                        {log.details ? formatDetails(log.details) : '-'}
                       </td>
                     </tr>
                   ))}

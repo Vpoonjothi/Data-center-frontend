@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import DateFilter, { applyDateFilter } from '../../components/common/DateFilter';
 import { Link } from 'react-router-dom';
 import { getQuotes } from '../../services/adminApi';
 import Pagination from '../../components/common/Pagination';
@@ -10,6 +11,17 @@ const AdminQuotesPage = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [dateFilter, setDateFilter] = useState({ type: 'all', value: '' });
+  
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-status-filter')) setIsFilterOpen(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchQuotes();
@@ -30,7 +42,7 @@ const AdminQuotesPage = () => {
 
   const filteredQuotes = quotes.filter(quote => {
     if (filterStatus !== 'All' && quote.status !== filterStatus) return false;
-    return true;
+    return applyDateFilter(quote.created_at || quote.createdAt, dateFilter);
   });
 
   const totalPages = Math.ceil(filteredQuotes.length / itemsPerPage);
@@ -46,28 +58,68 @@ const AdminQuotesPage = () => {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#0a1128] border border-gray-800 rounded-2xl overflow-hidden"
+        className="bg-[#0a1128] border border-gray-800 rounded-2xl"
       >
-        <div className="p-4 border-b border-gray-800 flex flex-wrap gap-4 items-center justify-between bg-[#0a1128]">
-          <div className="flex gap-4">
-            <select 
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="bg-[#020817] border border-gray-700 text-sm rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:border-secondary"
-            >
-              <option value="All">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="quoted">Quoted</option>
-              <option value="verification_pending">Verification Pending</option>
-              <option value="verified">Verified</option>
-              <option value="processing">Payment Processing</option>
-              <option value="paid">Paid</option>
-              <option value="active">Active</option>
-              <option value="rejected">Rejected</option>
-            </select>
+        <div className="p-4 border-b border-gray-800 flex flex-wrap gap-4 items-center justify-end bg-[#0a1128]">
+          <div className="flex flex-wrap gap-4">
+            <div className="relative custom-status-filter min-w-[180px]">
+              <button
+                type="button"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className="w-full flex items-center justify-between bg-[#020817] border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-300 focus:outline-none focus:border-secondary transition-colors"
+              >
+                <span className="truncate">
+                  {filterStatus === 'All' ? 'All Statuses' : 
+                   filterStatus === 'verification_pending' ? 'Verification Pending' :
+                   filterStatus === 'processing' ? 'Payment Processing' :
+                   filterStatus.charAt(0).toUpperCase() + filterStatus.slice(1)}
+                </span>
+                <svg className={`shrink-0 w-4 h-4 ml-2 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {isFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 z-50 mt-2 w-full min-w-[180px] bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2 max-h-[60vh] overflow-y-auto"
+                  >
+                    {[
+                      { value: 'All', label: 'All Statuses' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'quoted', label: 'Quoted' },
+                      { value: 'verification_pending', label: 'Verification Pending' },
+                      { value: 'verified', label: 'Verified' },
+                      { value: 'processing', label: 'Payment Processing' },
+                      { value: 'paid', label: 'Paid' },
+                      { value: 'active', label: 'Active' },
+                      { value: 'rejected', label: 'Rejected' },
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => { 
+                          setFilterStatus(option.value); 
+                          setCurrentPage(1);
+                          setIsFilterOpen(false); 
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${filterStatus === option.value ? 'text-secondary bg-secondary/10' : 'text-gray-300'}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <DateFilter 
+              filter={dateFilter} 
+              setFilter={setDateFilter} 
+              onFilterChange={() => setCurrentPage(1)} 
+            />
           </div>
         </div>
 

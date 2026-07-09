@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   getEnquiryById, 
   updateEnquiryStatus, 
@@ -37,6 +37,19 @@ const AdminEnquiryDetailsPage = () => {
 
   // Success/Error Messages
   const [notification, setNotification] = useState(null);
+  
+  // Custom Dropdown State
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-status-dropdown')) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const fetchEnquiry = async () => {
     try {
@@ -251,17 +264,35 @@ const AdminEnquiryDetailsPage = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12 px-4 sm:px-6 lg:px-8">
       {/* Notifications */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg border ${
-          notification.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'
-        } transition-all duration-300`}>
-          {notification.message}
-        </div>
-      )}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+            className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border ${
+              notification.type === 'error' 
+                ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+            }`}
+          >
+            {notification.type === 'error' ? (
+              <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <span className="font-semibold text-sm">{notification.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* QUICK ACTIONS BAR */}
-      <div className="sticky top-20 z-40 bg-[#0a1128]/95 backdrop-blur-md border border-gray-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center gap-4">
+      <div className="sticky top-20 z-40 bg-[#0a1128]/95 backdrop-blur-md border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+        <div className="flex flex-wrap items-center gap-3">
           <Link to="/admin/enquiries" className="text-gray-400 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -272,27 +303,41 @@ const AdminEnquiryDetailsPage = () => {
           <button className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Generate Invoice</button>
           <button className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Assign Sales Exec</button>
         </div>
-        <div className="flex items-center gap-3">
-          <select 
-            value={enquiry.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="bg-[#020817] border border-gray-700 text-white rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:border-secondary transition-colors cursor-pointer"
-          >
-            <optgroup label="CRM Workflow">
-              <option value="New">New</option>
-              <option value="Reviewing">Reviewing</option>
-              <option value="Quote Generated">Quote Generated</option>
-              <option value="Waiting Customer Approval">Waiting Customer Approval</option>
-              <option value="Approved">Approved</option>
-              <option value="Invoice Generated">Invoice Generated</option>
-              <option value="Payment Pending">Payment Pending</option>
-              <option value="Payment Received">Payment Received</option>
-              <option value="Provisioning">Provisioning</option>
-              <option value="Completed">Completed</option>
-              <option value="Closed">Closed</option>
-            </optgroup>
-          </select>
-          <button onClick={() => handleStatusChange('Closed')} className="px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-sm font-bold transition-colors">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full md:w-auto">
+          <div className="relative custom-status-dropdown w-full sm:w-48">
+            <button
+              onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+              className="w-full flex items-center justify-between gap-2 bg-[#020817] border border-gray-700 text-white rounded-lg px-4 py-2 text-sm font-medium focus:outline-none hover:border-gray-600 transition-colors cursor-pointer"
+            >
+              <span>{enquiry.status}</span>
+              <svg className={`w-4 h-4 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <AnimatePresence>
+              {isStatusDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 sm:left-auto sm:right-0 z-50 mt-2 w-full sm:w-56 bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2 max-h-60 overflow-y-auto custom-scrollbar"
+                >
+                  <div className="px-4 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">CRM Workflow</div>
+                  {['New', 'Reviewing', 'Quote Generated', 'Waiting Customer Approval', 'Approved', 'Invoice Generated', 'Payment Pending', 'Payment Received', 'Provisioning', 'Completed', 'Closed'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => { handleStatusChange(status); setIsStatusDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${enquiry.status === status ? 'text-secondary font-medium bg-secondary/10' : 'text-gray-300'}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <button onClick={() => handleStatusChange('Closed')} className="w-full sm:w-auto px-4 py-2 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-sm font-bold transition-colors">
             Close Request
           </button>
         </div>

@@ -33,6 +33,20 @@ const AdminOffersPage = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [isProductFilterOpen, setIsProductFilterOpen] = useState(false);
+  const [isSortFilterOpen, setIsSortFilterOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-status-filter')) setIsStatusFilterOpen(false);
+      if (!e.target.closest('.custom-product-filter')) setIsProductFilterOpen(false);
+      if (!e.target.closest('.custom-sort-filter')) setIsSortFilterOpen(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     fetchOffers();
   }, []);
@@ -191,37 +205,114 @@ const AdminOffersPage = () => {
               className="w-full bg-[#0a1128]/50 border border-white/10 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-emerald-500/50 transition-all text-white placeholder-gray-500"
             />
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2 md:pb-0">
-            <select 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-[#0a1128]/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500/50 text-white appearance-none pr-10 min-w-[140px]"
-            >
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Expired">Expired</option>
-              <option value="Draft">Draft</option>
-            </select>
-            <select 
-              value={productFilter}
-              onChange={(e) => setProductFilter(e.target.value)}
-              className="bg-[#0a1128]/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500/50 text-white appearance-none pr-10 min-w-[160px]"
-            >
-              <option value="All">All Products</option>
-              <option value="Enterprise Servers">Enterprise Servers</option>
-              <option value="AI Servers">AI Servers</option>
-              <option value="Colocation">Colocation</option>
-            </select>
-            <select 
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-[#0a1128]/50 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500/50 text-white appearance-none pr-10 min-w-[160px]"
-            >
-              <option value="Newest">Newest</option>
-              <option value="Highest Discount">Highest Discount</option>
-              <option value="Ending Soon">Ending Soon</option>
-            </select>
+          <div className="flex flex-wrap gap-4">
+            {/* Status Filter */}
+            <div className="relative custom-status-filter min-w-[140px]">
+              <button
+                type="button"
+                onClick={() => setIsStatusFilterOpen(!isStatusFilterOpen)}
+                className="w-full flex items-center justify-between bg-[#0a1128]/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors"
+              >
+                <span className="truncate">{statusFilter === 'All' ? 'All Status' : statusFilter}</span>
+                <svg className={`shrink-0 w-4 h-4 ml-2 transition-transform ${isStatusFilterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {isStatusFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 z-50 mt-2 w-full min-w-[140px] bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2"
+                  >
+                    {['All', 'Active', 'Scheduled', 'Expired', 'Draft'].map(status => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => { setStatusFilter(status); setIsStatusFilterOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${statusFilter === status ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-300'}`}
+                      >
+                        {status === 'All' ? 'All Status' : status}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Product Filter */}
+            <div className="relative custom-product-filter min-w-[160px]">
+              <button
+                type="button"
+                onClick={() => setIsProductFilterOpen(!isProductFilterOpen)}
+                className="w-full flex items-center justify-between bg-[#0a1128]/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors"
+              >
+                <span className="truncate">{productFilter === 'All' ? 'All Products' : productFilter}</span>
+                <svg className={`shrink-0 w-4 h-4 ml-2 transition-transform ${isProductFilterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {isProductFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 z-50 mt-2 w-full min-w-[160px] bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2"
+                  >
+                    {['All', 'Enterprise Servers', 'AI Servers', 'Colocation'].map(cat => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => { setProductFilter(cat); setIsProductFilterOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${productFilter === cat ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-300'}`}
+                      >
+                        {cat === 'All' ? 'All Products' : cat}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Sort Filter */}
+            <div className="relative custom-sort-filter min-w-[160px]">
+              <button
+                type="button"
+                onClick={() => setIsSortFilterOpen(!isSortFilterOpen)}
+                className="w-full flex items-center justify-between bg-[#0a1128]/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500/50 transition-colors"
+              >
+                <span className="truncate">{sortBy}</span>
+                <svg className={`shrink-0 w-4 h-4 ml-2 transition-transform ${isSortFilterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {isSortFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 md:left-0 z-50 mt-2 w-full min-w-[160px] bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2"
+                  >
+                    {['Newest', 'Highest Discount', 'Ending Soon'].map(sort => (
+                      <button
+                        key={sort}
+                        type="button"
+                        onClick={() => { setSortBy(sort); setIsSortFilterOpen(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${sortBy === sort ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-300'}`}
+                      >
+                        {sort}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
@@ -398,6 +489,21 @@ const ActionButton = ({ icon, onClick, tooltip, color = "hover:text-emerald-400"
 );
 
 const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
+  const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-product-dropdown')) {
+        setIsProductDropdownOpen(false);
+      }
+      if (!e.target.closest('.custom-status-dropdown')) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div 
@@ -411,7 +517,7 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
         initial={{ scale: 0.95, opacity: 0, y: 20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="bg-[#020817] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative z-10 shadow-2xl"
+        className="bg-[#020817] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar relative z-10 shadow-2xl"
       >
         <div className="sticky top-0 bg-[#020817]/90 backdrop-blur-md p-6 border-b border-white/10 flex justify-between items-center z-20">
           <h2 className="text-xl font-bold text-white flex items-center gap-3">
@@ -439,8 +545,9 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
               <label className="block text-sm font-semibold text-gray-400 mb-2">Discount Percentage</label>
               <div className="relative">
                 <input 
-                  type="number" min="0" max="100" required value={offer.discount || 0}
-                  onChange={e => onChange('discount', Number(e.target.value))}
+                  type="number" min="0" max="100" required value={offer.discount === '' ? '' : offer.discount}
+                  onChange={e => onChange('discount', e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="0"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">%</span>
@@ -448,15 +555,40 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">Product Category</label>
-              <select 
-                value={offer.product_category || 'Enterprise Servers'}
-                onChange={e => onChange('product_category', e.target.value)}
-                className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none"
-              >
-                <option value="Enterprise Servers">Enterprise Servers</option>
-                <option value="AI Servers">AI Servers</option>
-                <option value="Colocation">Colocation</option>
-              </select>
+              <div className="relative custom-product-dropdown">
+                <button
+                  type="button"
+                  onClick={() => setIsProductDropdownOpen(!isProductDropdownOpen)}
+                  className="w-full flex items-center justify-between bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                >
+                  <span>{offer.product_category || 'Enterprise Servers'}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isProductDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <AnimatePresence>
+                  {isProductDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 z-50 mt-2 w-full bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2"
+                    >
+                      {['Enterprise Servers', 'AI Servers', 'Colocation'].map(cat => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => { onChange('product_category', cat); setIsProductDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${offer.product_category === cat ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-300'}`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
 
@@ -489,31 +621,57 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">Status</label>
-              <select 
-                value={offer.status || 'Draft'}
-                onChange={e => onChange('status', e.target.value)}
-                className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors appearance-none"
-              >
-                <option value="Draft">Draft</option>
-                <option value="Scheduled">Scheduled</option>
-                <option value="Active">Active</option>
-                <option value="Expired">Expired</option>
-              </select>
+              <div className="relative custom-status-dropdown">
+                <button
+                  type="button"
+                  onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                  className="w-full flex items-center justify-between bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                >
+                  <span>{offer.status || 'Draft'}</span>
+                  <svg className={`w-4 h-4 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <AnimatePresence>
+                  {isStatusDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 z-50 mt-2 w-full bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2"
+                    >
+                      {['Draft', 'Scheduled', 'Active', 'Expired'].map(status => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => { onChange('status', status); setIsStatusDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${offer.status === status ? 'text-emerald-400 bg-emerald-400/10' : 'text-gray-300'}`}
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">Start Date</label>
               <input 
-                type="date" value={offer.start_date ? offer.start_date.split('T')[0] : ''}
+                type="date"
+                value={offer.start_date ? offer.start_date.split('T')[0] : ''}
                 onChange={e => onChange('start_date', e.target.value)}
-                className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors [color-scheme:dark] cursor-pointer"
               />
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-400 mb-2">End Date</label>
               <input 
-                type="date" value={offer.end_date ? offer.end_date.split('T')[0] : ''}
+                type="date"
+                value={offer.end_date ? offer.end_date.split('T')[0] : ''}
                 onChange={e => onChange('end_date', e.target.value)}
-                className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full bg-[#0a1128] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors [color-scheme:dark] cursor-pointer"
               />
             </div>
           </div>
@@ -528,15 +686,7 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
               placeholder="e.g. Upgrade to an Enterprise Server with a minimum of 4 vCPUs and get 20% off for the first 3 months."
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-400 mb-2">Banner Image URL (Optional)</label>
-            <input 
-              type="text" value={offer.image_url || ''}
-              onChange={e => onChange('image_url', e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition-colors"
-              placeholder="https://example.com/banner.jpg"
-            />
-          </div>
+
 
           <div className="pt-6 border-t border-white/10 flex justify-end gap-4">
             <button type="button" onClick={onClose} className="px-6 py-3 font-semibold text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors">

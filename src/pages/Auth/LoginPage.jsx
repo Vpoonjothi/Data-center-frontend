@@ -136,16 +136,7 @@ const LoginPage = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-end">
-              <div className="text-sm">
-                <Link
-                  to="/forgot-password"
-                  className="font-medium text-secondary hover:text-secondary transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            </div>
+
 
             <div>
               <button

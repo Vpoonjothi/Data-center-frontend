@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getAdminAiServers, createAiServer, updateAiServer, deleteAiServer } from '../../services/adminApi';
 
 const AdminAiSettingsPage = () => {
@@ -8,6 +8,8 @@ const AdminAiSettingsPage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, name: '' });
+
   const [isEditing, setIsEditing] = useState(null); // null means creating new, string ID means editing
   
   const [formData, setFormData] = useState({
@@ -96,11 +98,14 @@ const AdminAiSettingsPage = () => {
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete ${name}?`)) {
-      return;
-    }
+  const confirmDelete = (id, name) => {
+    setDeleteConfirm({ isOpen: true, id, name });
+  };
 
+  const handleDelete = async () => {
+    const { id, name } = deleteConfirm;
+    setDeleteConfirm({ isOpen: false, id: null, name: '' });
+    
     try {
       await deleteAiServer(id);
       setSuccess(`${name} deleted successfully.`);
@@ -319,7 +324,7 @@ const AdminAiSettingsPage = () => {
                         Edit
                       </button>
                       <button 
-                        onClick={() => handleDelete(server.id, server.name)}
+                        onClick={() => confirmDelete(server.id, server.name)}
                         className="text-red-400 hover:text-red-300 font-medium"
                       >
                         Delete
@@ -332,6 +337,44 @@ const AdminAiSettingsPage = () => {
           </div>
         )}
       </motion.div>
+
+      <AnimatePresence>
+        {deleteConfirm.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#0a1128] border border-gray-700 p-6 md:p-8 rounded-2xl shadow-2xl max-w-md w-full relative"
+            >
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Delete AI Server</h3>
+              <p className="text-gray-400 mb-8 leading-relaxed">
+                Are you sure you want to delete <span className="text-white font-semibold">{deleteConfirm.name}</span>? This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setDeleteConfirm({ isOpen: false, id: null, name: '' })}
+                  className="px-6 py-2.5 font-semibold text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-900/20"
+                >
+                  Delete Server
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

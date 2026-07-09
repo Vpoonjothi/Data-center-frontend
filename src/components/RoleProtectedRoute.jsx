@@ -23,7 +23,12 @@ const RoleProtectedRoute = ({ children, allowedRoles }) => {
       return <Navigate to="/admin/superadmin" replace />;
     }
     
-    // If a regular admin accidentally hits a superadmin page, bounce them to their panel
+    // If a regular admin accidentally hits a superadmin page, bounce them to superadmin login
+    if (allowedRoles.includes('superadmin') && !allowedRoles.includes('admin')) {
+      return <Navigate to="/superadmin/login" replace />;
+    }
+    
+    // Otherwise bounce them to their dashboard
     return <Navigate to="/admin/dashboard" replace />;
   }
 

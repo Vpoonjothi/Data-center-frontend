@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Pagination from '../../components/common/Pagination';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import DateFilter, { applyDateFilter } from '../../components/common/DateFilter';
 import { Link } from 'react-router-dom';
 import { getEnquiries } from '../../services/adminApi';
 
@@ -12,6 +13,23 @@ const AdminEnquiriesPage = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All');
   const [filterAction, setFilterAction] = useState('All');
+  const [dateFilter, setDateFilter] = useState({ type: 'all', value: '' });
+
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false);
+  const [isTypeFilterOpen, setIsTypeFilterOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-status-dropdown')) {
+        setIsStatusFilterOpen(false);
+      }
+      if (!e.target.closest('.custom-type-dropdown')) {
+        setIsTypeFilterOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const fetchEnquiries = async () => {
     try {
@@ -34,7 +52,8 @@ const AdminEnquiriesPage = () => {
     const statusMatch = filterStatus === 'All' || enq.status === filterStatus;
     const typeMatch = filterType === 'All' || enq.type === filterType;
     const actionMatch = filterAction === 'All' || enq.request_action === filterAction;
-    return statusMatch && typeMatch && actionMatch;
+    const dateMatch = applyDateFilter(enq.created_at || enq.createdAt, dateFilter);
+    return statusMatch && typeMatch && actionMatch && dateMatch;
   });
 
   const totalPages = Math.ceil(filteredEnquiries.length / itemsPerPage);
@@ -49,7 +68,7 @@ const AdminEnquiriesPage = () => {
         </div>
       </div>
 
-      <div className="bg-[#0a1128] border border-gray-800 rounded-2xl overflow-hidden">
+      <div className="bg-[#0a1128] border border-gray-800 rounded-2xl">
         {/* Top Action Tabs */}
         <div className="flex overflow-x-auto border-b border-gray-800 bg-[#020817] custom-scrollbar">
           {['All', 'REQUEST_QUOTE', 'DIRECT_ORDER', 'GENERAL_ENQUIRY'].map((action) => (
@@ -68,46 +87,93 @@ const AdminEnquiriesPage = () => {
         </div>
 
         <div className="p-4 border-b border-gray-800 bg-[#020817]/50 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-400">Status:</span>
-            <select 
-              value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="bg-[#020817] border border-gray-800 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-secondary"
-            >
-              <option value="All">All Statuses</option>
-              <optgroup label="New Workflow">
-                <option value="New">New</option>
-                <option value="Reviewing">Reviewing</option>
-                <option value="Quote Generated">Quote Generated</option>
-                <option value="Waiting Customer Approval">Waiting Customer Approval</option>
-                <option value="Approved">Approved</option>
-                <option value="Invoice Generated">Invoice Generated</option>
-                <option value="Payment Pending">Payment Pending</option>
-                <option value="Payment Received">Payment Received</option>
-                <option value="Provisioning">Provisioning</option>
-                <option value="Completed">Completed</option>
-                <option value="Closed">Closed</option>
-              </optgroup>
-              <optgroup label="Legacy Workflow">
-                <option value="In Progress">In Progress (Legacy)</option>
-                <option value="Responded">Responded (Legacy)</option>
-              </optgroup>
-            </select>
+          <div className="flex items-center gap-2 w-full sm:w-auto z-20">
+            <span className="text-sm font-medium text-gray-400 w-12 sm:w-auto">Status:</span>
+            <div className="relative custom-status-dropdown flex-1 sm:w-48">
+              <button
+                onClick={() => { setIsStatusFilterOpen(!isStatusFilterOpen); setIsTypeFilterOpen(false); }}
+                className="w-full flex items-center justify-between gap-2 bg-[#020817] border border-gray-800 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none hover:border-gray-600 transition-colors cursor-pointer"
+              >
+                <span className="truncate">{filterStatus === 'All' ? 'All Statuses' : filterStatus}</span>
+                <svg className={`w-4 h-4 shrink-0 transition-transform ${isStatusFilterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {isStatusFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 sm:left-auto sm:right-auto z-30 mt-2 w-full sm:w-56 bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2 max-h-60 overflow-y-auto custom-scrollbar"
+                  >
+                    <button onClick={() => { setFilterStatus('All'); setCurrentPage(1); setIsStatusFilterOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${filterStatus === 'All' ? 'text-secondary font-medium bg-secondary/10' : 'text-gray-300'}`}>All Statuses</button>
+                    
+                    <div className="px-4 py-1 mt-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">New Workflow</div>
+                    {['New', 'Reviewing', 'Quote Generated', 'Waiting Customer Approval', 'Approved', 'Invoice Generated', 'Payment Pending', 'Payment Received', 'Provisioning', 'Completed', 'Closed'].map((status) => (
+                      <button key={status} onClick={() => { setFilterStatus(status); setCurrentPage(1); setIsStatusFilterOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${filterStatus === status ? 'text-secondary font-medium bg-secondary/10' : 'text-gray-300'}`}>{status}</button>
+                    ))}
+                    
+                    <div className="px-4 py-1 mt-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Legacy Workflow</div>
+                    {['In Progress', 'Responded'].map((status) => (
+                      <button key={status} onClick={() => { setFilterStatus(status); setCurrentPage(1); setIsStatusFilterOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${filterStatus === status ? 'text-secondary font-medium bg-secondary/10' : 'text-gray-300'}`}>{status} (Legacy)</button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-400">Type:</span>
-            <select 
-              value={filterType}
-              onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
-              className="bg-[#020817] border border-gray-800 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-secondary"
-            >
-              <option value="All">All Types</option>
-              <option value="contact">General Contact</option>
-              <option value="quote">Quote Request</option>
-              <option value="ai_server">AI Server Request</option>
-              <option value="enterprise_server">Enterprise Server Request</option>
-            </select>
+          <div className="flex items-center gap-2 w-full sm:w-auto z-10">
+            <span className="text-sm font-medium text-gray-400 w-12 sm:w-auto">Type:</span>
+            <div className="relative custom-type-dropdown flex-1 sm:w-48">
+              <button
+                onClick={() => { setIsTypeFilterOpen(!isTypeFilterOpen); setIsStatusFilterOpen(false); }}
+                className="w-full flex items-center justify-between gap-2 bg-[#020817] border border-gray-800 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none hover:border-gray-600 transition-colors cursor-pointer"
+              >
+                <span className="truncate">
+                  {filterType === 'All' ? 'All Types' : 
+                   filterType === 'contact' ? 'General Contact' : 
+                   filterType === 'quote' ? 'Quote Request' : 
+                   filterType === 'ai_server' ? 'AI Server Request' : 
+                   filterType === 'enterprise_server' ? 'Enterprise Server Request' : filterType}
+                </span>
+                <svg className={`w-4 h-4 shrink-0 transition-transform ${isTypeFilterOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {isTypeFilterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 sm:left-auto sm:right-auto z-30 mt-2 w-full sm:w-56 bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2 max-h-60 overflow-y-auto custom-scrollbar"
+                  >
+                    {[
+                      { val: 'All', label: 'All Types' },
+                      { val: 'contact', label: 'General Contact' },
+                      { val: 'quote', label: 'Quote Request' },
+                      { val: 'ai_server', label: 'AI Server Request' },
+                      { val: 'enterprise_server', label: 'Enterprise Server Request' }
+                    ].map((typeObj) => (
+                      <button key={typeObj.val} onClick={() => { setFilterType(typeObj.val); setCurrentPage(1); setIsTypeFilterOpen(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${filterType === typeObj.val ? 'text-secondary font-medium bg-secondary/10' : 'text-gray-300'}`}>
+                        {typeObj.label}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            <DateFilter 
+              filter={dateFilter} 
+              setFilter={setDateFilter} 
+              onFilterChange={() => setCurrentPage(1)} 
+            />
           </div>
         </div>
         

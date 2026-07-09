@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getUserById, updateUserStatus, deleteUser } from '../../services/adminApi';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
@@ -10,6 +10,17 @@ const AdminUserDetailsPage = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.custom-status-dropdown')) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -88,19 +99,42 @@ const AdminUserDetailsPage = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <select 
-            value={user.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className={`text-sm font-bold px-4 py-2 rounded-lg outline-none cursor-pointer border ${
-              user.status === 'active' ? 'bg-secondary/10 text-secondary border-secondary/20' :
-              user.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-              'bg-gray-500/10 text-gray-400 border-gray-500/20'
-            }`}
-          >
-            <option value="active" className="bg-[#020817] text-white">Active</option>
-            <option value="inactive" className="bg-[#020817] text-white">Inactive</option>
-            <option value="suspended" className="bg-[#020817] text-white">Suspended</option>
-          </select>
+          <div className="relative custom-status-dropdown">
+            <button
+              onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+              className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg outline-none cursor-pointer border ${
+                user.status === 'active' ? 'bg-secondary/10 text-secondary border-secondary/20' :
+                user.status === 'suspended' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                'bg-gray-500/10 text-gray-400 border-gray-500/20'
+              }`}
+            >
+              <span>{user.status.charAt(0).toUpperCase() + user.status.slice(1)}</span>
+              <svg className={`w-4 h-4 transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <AnimatePresence>
+              {isStatusDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 sm:left-auto sm:right-0 z-30 mt-2 w-36 bg-[#0a1128] border border-gray-700 rounded-xl shadow-2xl py-2"
+                >
+                  {['active', 'inactive', 'suspended'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => { handleStatusChange(status); setIsStatusDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition-colors ${user.status === status ? 'text-white font-medium bg-white/10' : 'text-gray-300'}`}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <button 
             onClick={handleDelete}
             className="px-4 py-2 border border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors font-medium text-sm"

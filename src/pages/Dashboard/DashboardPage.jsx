@@ -28,10 +28,10 @@ const DashboardPage = () => {
         ]);
 
         setData({
-          quotes: quotesRes.data || [],
-          kyc: kycRes.data?.success ? kycRes.data.data : [],
-          payments: paymentsRes.data?.success ? paymentsRes.data.data : [],
-          services: servicesRes.data?.success ? servicesRes.data.data : []
+          quotes: Array.isArray(quotesRes.data) ? quotesRes.data : [],
+          kyc: kycRes.data?.success && Array.isArray(kycRes.data.data) ? kycRes.data.data : [],
+          payments: paymentsRes.data?.success && Array.isArray(paymentsRes.data.data) ? paymentsRes.data.data : [],
+          services: servicesRes.data?.success && Array.isArray(servicesRes.data.data) ? servicesRes.data.data : []
         });
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);

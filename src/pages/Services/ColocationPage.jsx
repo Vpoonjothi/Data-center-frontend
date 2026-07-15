@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { submitEnquiry } from '../../services/api';
+import { submitEnquiry, getOffers } from '../../services/api';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
 import { ContentContext } from '../../context/ContentContext';
@@ -32,7 +32,7 @@ const LEASED_LINE_OPTIONS = [
   { speed: '100 Mbps', price: 30000 }
 ];
 
-const STATIC_IP_PRICE_DEFAULT = 1000;
+const STATIC_IP_PRICE_DEFAULT = 4500;
 const RACK_U_PRICE_DEFAULT = 500;
 
 const ColocationPage = () => {
@@ -49,6 +49,7 @@ const ColocationPage = () => {
   const [selectedInternet, setSelectedInternet] = useState(BROADBAND_OPTIONS[0]);
   const [requireStaticIP, setRequireStaticIP] = useState(false);
   const [estimatedTotal, setEstimatedTotal] = useState(0);
+  const [offers, setOffers] = useState([]);
 
   // Form State
   const [message, setMessage] = useState('');
@@ -58,21 +59,46 @@ const ColocationPage = () => {
   const [error, setError] = useState('');
 
   const [billingDuration, setBillingDuration] = useState({
-    duration_type: 'Monthly',
+    duration_type: 'Yearly',
     duration_value: 1,
-    duration_unit: 'Months',
+    duration_unit: 'Yearly',
     durationMultiplier: 1
   });
 
+  const activeOffer = offers.length > 0 ? offers[0] : null;
+  const discountPercent = activeOffer ? activeOffer.discount : 0;
+  const discountedTotal = estimatedTotal - (estimatedTotal * (discountPercent / 100));
+
   const setupFee = 150;
-  const { contractValue: durationSubtotal, gstAmount: baseGstAmount, totalPayable: baseGrandTotal } = calculateSubscriptionPricing(
-    estimatedTotal,
+  let { contractValue: durationSubtotal, gstAmount, totalPayable: grandTotal } = calculateSubscriptionPricing(
+    discountedTotal,
     billingDuration.duration_value,
     billingDuration.duration_unit
   );
 
-  const gstAmount = baseGstAmount + (setupFee * 0.18);
-  const grandTotal = durationSubtotal + setupFee + gstAmount;
+  if (requireStaticIP) {
+    durationSubtotal += STATIC_IP_PRICE;
+    gstAmount += (STATIC_IP_PRICE * 0.18) + (setupFee * 0.18);
+    grandTotal = durationSubtotal + setupFee + gstAmount;
+  } else {
+    gstAmount += (setupFee * 0.18);
+    grandTotal = durationSubtotal + setupFee + gstAmount;
+  }
+
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        const data = await getOffers();
+        if (Array.isArray(data)) {
+          const colocationOffers = data.filter(o => o.product_category === 'Colocation' && o.status === 'Active');
+          setOffers(colocationOffers.sort((a, b) => b.discount - a.discount));
+        }
+      } catch (err) {
+        console.error('Failed to fetch offers', err);
+      }
+    };
+    fetchOffers();
+  }, []);
 
   useEffect(() => {
     // Recalculate options when type changes
@@ -98,7 +124,7 @@ const ColocationPage = () => {
     }
     
     if (requireStaticIP) {
-      total += STATIC_IP_PRICE;
+      // Flat fee, added to the final contract value instead of the monthly total
     }
     
     setEstimatedTotal(total);
@@ -139,6 +165,7 @@ const ColocationPage = () => {
       configJson.gst_amount = `₹${gstAmount.toLocaleString()}`;
       configJson.grand_total = `₹${grandTotal.toLocaleString()}`;
       configJson.quantity = quantity;
+      configJson.discount = activeOffer ? activeOffer.name : 'None';
 
       const enquiryData = {
         name: user.name,
@@ -350,7 +377,7 @@ const ColocationPage = () => {
                       <div className="text-xs text-gray-500">Dedicated IP address for your servers</div>
                     </div>
                   </div>
-                  <div className="text-sm font-bold text-gray-400">₹1,000/mo</div>
+                  <div className="text-sm font-bold text-gray-400">₹{STATIC_IP_PRICE.toLocaleString()}/year</div>
                   <input type="checkbox" className="hidden" checked={requireStaticIP} onChange={(e) => setRequireStaticIP(e.target.checked)} />
                 </label>
               </div>
@@ -396,6 +423,16 @@ const ColocationPage = () => {
                 </h2>
 
                 <div className="space-y-4 mb-8">
+                  {activeOffer && (
+                    <div className="bg-emerald-900/20 border border-secondary/50 rounded-xl p-4 flex items-center gap-3">
+                      <span className="text-3xl">🎉</span>
+                      <div>
+                        <div className="font-bold text-secondary">{activeOffer.name} Applied</div>
+                        <div className="text-sm text-emerald-200/70">You are saving {activeOffer.discount}% on Colocation!</div>
+                      </div>
+                    </div>
+                  )}
+
                   {rackRequirement === 'GreenLeaf' ? (
                     <div className="flex justify-between items-center py-3 border-b border-gray-800">
                       <span className="text-gray-400">Rack Space ({selectedRack.units === 'Custom' ? 'Custom' : `${selectedRack.units}U`})</span>
@@ -423,7 +460,7 @@ const ColocationPage = () => {
                   )}
                   <div className="flex justify-between items-center py-3 border-b border-gray-800">
                     <span className="text-gray-400">Monthly Subscription</span>
-                    <span className="text-white font-medium">₹{estimatedTotal.toLocaleString()}</span>
+                    <span className="text-white font-medium">₹{discountedTotal.toLocaleString()}</span>
                   </div>
 
                   <div className="pt-2">

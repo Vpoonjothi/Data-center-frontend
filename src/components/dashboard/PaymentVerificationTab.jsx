@@ -106,7 +106,7 @@ const PaymentVerificationTab = () => {
             {payment.receipt_url && (
               <div className="shrink-0 pt-2 md:pt-0">
                 <a 
-                  href={payment.receipt_url.startsWith('http') ? payment.receipt_url : `http://${window.location.hostname}:5000${payment.receipt_url}`} 
+                  href={payment.receipt_url.startsWith('http') ? payment.receipt_url : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${payment.receipt_url}`} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition-colors border border-slate-700"

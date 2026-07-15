@@ -197,7 +197,7 @@ const NotificationBell = ({ isAdmin = false }) => {
                       {!notif.is_read && (
                         <div className="mt-2 text-right">
                           <button
-                            onClick={(e) => handleNotificationClick(notif, e)}
+                            onClick={(e) => handleMarkAsRead(notif.id, e)}
                             className="text-[10px] font-medium text-slate-400 hover:text-white transition-colors px-2 py-1 bg-slate-800 rounded"
                           >
                             Mark as read
@@ -219,47 +219,38 @@ const NotificationBell = ({ isAdmin = false }) => {
 
       <AnimatePresence>
         {selectedNotif && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed top-20 right-4 z-[100] flex flex-col pointer-events-none">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 max-w-md w-full relative"
+              initial={{ opacity: 0, x: 50, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 50, scale: 0.95 }}
+              className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 w-[350px] relative pointer-events-auto"
             >
               <button
                 onClick={(e) => { e.stopPropagation(); setSelectedNotif(null); }}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+                className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
               
-              <div className="flex items-center gap-3 mb-4 pr-8">
-                <div className={`w-3 h-3 rounded-full shadow-[0_0_8px_currentColor] ${getPriorityColor(selectedNotif.priority)}`}></div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <div className="flex items-center gap-2 mb-3 pr-8">
+                <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_currentColor] ${getPriorityColor(selectedNotif.priority)}`}></div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   {selectedNotif.category}
                 </span>
-                <span className="text-xs text-slate-500 ml-auto font-medium">
-                  {new Date(selectedNotif.created_at).toLocaleString()}
+                <span className="text-[10px] text-slate-500 ml-auto font-medium">
+                  {new Date(selectedNotif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </span>
               </div>
               
-              <h3 className="text-xl font-bold text-white mb-3 leading-tight">{selectedNotif.title}</h3>
+              <h3 className="text-sm font-bold text-white mb-2 leading-tight">{selectedNotif.title}</h3>
               
-              <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
-                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                <p className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
                   {selectedNotif.message}
                 </p>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setSelectedNotif(null)}
-                  className="px-6 py-2 bg-secondary hover:bg-emerald-500 text-white font-medium rounded-lg text-sm transition-colors shadow-lg shadow-secondary/20"
-                >
-                  Close
-                </button>
               </div>
             </motion.div>
           </div>

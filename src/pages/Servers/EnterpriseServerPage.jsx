@@ -21,8 +21,13 @@ const EnterpriseServerPage = () => {
     const loadOffers = async () => {
       try {
         const data = await getOffers();
-        // Sort by discount descending to ensure we check highest discount first
-        setOffers(data.sort((a, b) => b.discount - a.discount));
+        if (Array.isArray(data)) {
+          const filteredOffers = data.filter(o => o.product_category === 'Enterprise Servers');
+          setOffers(filteredOffers.sort((a, b) => b.discount - a.discount));
+        } else {
+          console.error('Expected array for offers, got:', data);
+          setOffers([]);
+        }
       } catch (err) {
         console.error('Failed to load offers:', err);
       }
@@ -33,11 +38,22 @@ const EnterpriseServerPage = () => {
   const [vCPU, setVCPU] = useState(ENTERPRISE_PRICING.vCPU.min);
   const [ram, setRam] = useState(ENTERPRISE_PRICING.RAM.min);
   const [ssd, setSsd] = useState(ENTERPRISE_PRICING.SSD.min);
-  const [bandwidth, setBandwidth] = useState(ENTERPRISE_PRICING.Bandwidth[0]);
+  const [bandwidth, setBandwidth] = useState(ENTERPRISE_PRICING.Bandwidth.min);
   const [os, setOs] = useState(ENTERPRISE_PRICING.OS[0]);
   const [backup, setBackup] = useState(false);
   const [isOsDropdownOpen, setIsOsDropdownOpen] = useState(false);
-  const [isBandwidthDropdownOpen, setIsBandwidthDropdownOpen] = useState(false);
+  const [windowsLicense, setWindowsLicense] = useState('licensed');
+
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.os-dropdown-container')) {
+        setIsOsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const [message, setMessage] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -62,8 +78,9 @@ const EnterpriseServerPage = () => {
   const vCPUPrice = vCPU * baseVcpuPrice;
   const ramPrice = ram * baseRamPrice;
   const ssdPrice = (ssd / ENTERPRISE_PRICING.SSD.baseIncrement) * baseSsdPrice;
-  const bandwidthPrice = bandwidth.price;
-  const osPrice = os.price;
+  const bandwidthPrice = bandwidth > 10 ? 6000 : bandwidth * ENTERPRISE_PRICING.Bandwidth.price;
+  const isWindows = os.label.includes('Windows');
+  const osPrice = isWindows && windowsLicense === 'unlicensed' ? 0 : os.price;
   const backupPrice = backup ? ENTERPRISE_PRICING.Backup.price : 0;
 
   const subtotal = vCPUPrice + ramPrice + ssdPrice + bandwidthPrice + osPrice + backupPrice;
@@ -129,8 +146,8 @@ const EnterpriseServerPage = () => {
         vcpu: vCPU,
         ram: ram,
         storage: ssd,
-        os: os.name,
-        bandwidth: bandwidth.name,
+        os: isWindows ? `${os.label} (${windowsLicense === 'licensed' ? 'With License' : 'Without License'})` : os.label,
+        bandwidth: bandwidth > 10 ? 'Unlimited' : `${bandwidth} TB`,
         backup: backup,
         quantity: quantity,
         discount: appliedOffer ? appliedOffer.name : 'None',
@@ -183,11 +200,17 @@ const EnterpriseServerPage = () => {
     } else if (type === 'SSD') {
       const newValue = action === 'add' ? ssd + rules.step : ssd - rules.step;
       if (newValue >= rules.min && newValue <= rules.max) setSsd(newValue);
+    } else if (type === 'Bandwidth') {
+      const newValue = action === 'add' ? bandwidth + rules.step : bandwidth - rules.step;
+      if (newValue >= rules.min && rules.max >= newValue) setBandwidth(newValue);
     }
   };
 
-  const renderControlGroup = ({ label, value, unit, type }) => {
+  const renderControlGroup = ({ label, value, unit, type, isBandwidth = false }) => {
     const rules = ENTERPRISE_PRICING[type];
+    const displayValue = isBandwidth && value > 10 ? 'Unlimited' : value;
+    const displayUnit = isBandwidth && value > 10 ? '' : unit;
+    
     return (
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
@@ -200,8 +223,9 @@ const EnterpriseServerPage = () => {
             >
               -
             </button>
-            <div className="w-24 text-center font-bold text-xl text-secondary">
-              {value} <span className="text-sm font-normal text-gray-500">{unit}</span>
+            <div className="w-24 text-center font-bold text-xl text-secondary flex flex-col items-center justify-center leading-tight">
+              <span className={displayValue === 'Unlimited' ? 'text-base tracking-tight' : ''}>{displayValue}</span>
+              {displayUnit && <span className="text-sm font-normal text-gray-500">{displayUnit}</span>}
             </div>
             <button
               onClick={() => handleStepper(type, 'add')}
@@ -230,13 +254,14 @@ const EnterpriseServerPage = () => {
               if (type === 'vCPU') setVCPU(val);
               if (type === 'RAM') setRam(val);
               if (type === 'SSD') setSsd(val);
+              if (type === 'Bandwidth') setBandwidth(val);
             }}
             className="absolute w-full h-full opacity-0 cursor-pointer"
           />
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-2">
           <span>{rules.min} {unit}</span>
-          <span>{rules.max} {unit}</span>
+          <span>{isBandwidth ? 'Unlimited' : `${rules.max} ${unit}`}</span>
         </div>
       </div>
     );
@@ -247,7 +272,7 @@ const EnterpriseServerPage = () => {
     vCPU,
     ram,
     ssd,
-    bandwidth: bandwidth.label,
+    bandwidth: bandwidth > 10 ? 'Unlimited' : `${bandwidth} TB`,
     os: os.label,
     backup,
     discountName: appliedOffer ? `${appliedOffer.name} (-${appliedOffer.discount}%)` : null,
@@ -302,7 +327,7 @@ const EnterpriseServerPage = () => {
               <div className="space-y-6">
                 
                 {/* OS Selection */}
-                <div className="relative z-[60]">
+                <div className="relative z-[60] os-dropdown-container">
                   <label className="block text-gray-400 font-medium text-sm mb-2">Operating System</label>
                   
                   {/* Custom Dropdown Trigger */}
@@ -310,8 +335,15 @@ const EnterpriseServerPage = () => {
                     className="w-full bg-[#1e293b] border border-gray-700 hover:border-secondary text-white rounded-lg px-4 py-3 cursor-pointer flex justify-between items-center transition-colors text-sm"
                     onClick={() => setIsOsDropdownOpen(!isOsDropdownOpen)}
                   >
-                    <span className="font-medium">{os.label} <span className={os.price === 0 ? 'text-emerald-400' : 'text-blue-400'}>{os.price > 0 ? `(+₹${os.price}/mo)` : '(Free)'}</span></span>
-                    <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOsDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <span className="font-medium flex-1 truncate pr-2">
+                      {os.label}
+                      {isWindows && windowsLicense === 'unlicensed' && ' (Without License)'}
+                      {isWindows && windowsLicense === 'licensed' && ' (With License)'}
+                      <span className={osPrice === 0 ? 'text-emerald-400 ml-1' : 'text-blue-400 ml-1'}>
+                        {osPrice > 0 ? `(+₹${osPrice}/mo)` : '(Free)'}
+                      </span>
+                    </span>
+                    <svg className={`w-4 h-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOsDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -334,14 +366,14 @@ const EnterpriseServerPage = () => {
                             </svg>
                             Linux (Free License)
                           </div>
-                          {ENTERPRISE_PRICING.OS.filter(o => o.price === 0).map(opt => (
+                          {ENTERPRISE_PRICING.OS.filter(o => !o.value.includes('Windows')).map(opt => (
                             <div 
                               key={opt.label}
                               onClick={() => { setOs(opt); setIsOsDropdownOpen(false); }}
                               className={`px-3 py-2 rounded-md cursor-pointer flex justify-between items-center transition-colors text-sm ${os.label === opt.label ? 'bg-secondary/20 text-secondary' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
                             >
-                              <span className="font-medium">{opt.label}</span>
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-400/10">FREE</span>
+                              <span className="font-medium truncate mr-2">{opt.label}</span>
+                              <span className="text-[10px] shrink-0 font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-400/10">FREE</span>
                             </div>
                           ))}
                         </div>
@@ -354,16 +386,20 @@ const EnterpriseServerPage = () => {
                             <svg className="w-3.5 h-3.5 text-[#00a4ef]" viewBox="0 0 88 88" fill="currentColor">
                               <path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.027 34.453-35.67-4.904-.027-29.773zm4.326-39.08l47.968-6.851v41.341l-47.968.39zm47.968 41.527v41.405l-47.968-6.861-.016-34.82z"/>
                             </svg>
-                            Windows Server (Licensed)
+                            Windows Server
                           </div>
-                          {ENTERPRISE_PRICING.OS.filter(o => o.price > 0).map(opt => (
+                          {ENTERPRISE_PRICING.OS.filter(o => o.value.includes('Windows')).map(opt => (
                             <div 
                               key={opt.label}
                               onClick={() => { setOs(opt); setIsOsDropdownOpen(false); }}
                               className={`px-3 py-2 rounded-md cursor-pointer flex justify-between items-center transition-colors text-sm ${os.label === opt.label ? 'bg-secondary/20 text-secondary' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
                             >
-                              <span className="font-medium">{opt.label}</span>
-                              <span className="text-xs text-blue-400 font-semibold">+₹{opt.price}/mo</span>
+                              <span className="font-medium truncate mr-2">{opt.label}</span>
+                              {opt.price > 0 ? (
+                                <span className="text-xs shrink-0 text-blue-400 font-semibold">+₹{opt.price}/mo</span>
+                              ) : (
+                                <span className="text-[10px] shrink-0 font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-400/10">FREE</span>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -371,22 +407,64 @@ const EnterpriseServerPage = () => {
                     )}
                   </AnimatePresence>
 
-                  {/* Windows Specific Note */}
+                  {/* Windows Specific Note & License Toggle */}
                   <AnimatePresence>
-                    {os.price > 0 && (
+                    {isWindows && (
                       <motion.div 
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 p-3 bg-blue-900/10 border border-blue-800/30 rounded-lg flex items-start gap-2.5">
-                          <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <p className="text-xs text-blue-200/80 leading-relaxed">
-                            <strong className="text-blue-300 font-semibold">Note:</strong> <span className="text-white">Windows activation charges and installation fees are additional</span> and will be included in your final quotation.
-                          </p>
+                        <div className="mt-4 p-4 bg-[#0a1128]/50 border border-blue-900/30 rounded-xl">
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Windows License Option</label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setWindowsLicense('licensed')}
+                              className={`p-3 rounded-lg border text-left transition-all ${
+                                windowsLicense === 'licensed' 
+                                  ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]' 
+                                  : 'bg-[#020817] border-gray-800 hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${windowsLicense === 'licensed' ? 'border-blue-400' : 'border-gray-600'}`}>
+                                  {windowsLicense === 'licensed' && <div className="w-2 h-2 rounded-full bg-blue-400"></div>}
+                                </div>
+                                <span className={`font-bold text-sm ${windowsLicense === 'licensed' ? 'text-blue-400' : 'text-gray-300'}`}>With License</span>
+                              </div>
+                              <div className="text-xs text-gray-500 pl-6">+₹{os.price}/mo</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setWindowsLicense('unlicensed')}
+                              className={`p-3 rounded-lg border text-left transition-all ${
+                                windowsLicense === 'unlicensed' 
+                                  ? 'bg-emerald-900/20 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
+                                  : 'bg-[#020817] border-gray-800 hover:border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${windowsLicense === 'unlicensed' ? 'border-emerald-400' : 'border-gray-600'}`}>
+                                  {windowsLicense === 'unlicensed' && <div className="w-2 h-2 rounded-full bg-emerald-400"></div>}
+                                </div>
+                                <span className={`font-bold text-sm ${windowsLicense === 'unlicensed' ? 'text-emerald-400' : 'text-gray-300'}`}>Without License</span>
+                              </div>
+                              <div className="text-xs text-gray-500 pl-6">Bring your own (Free)</div>
+                            </button>
+                          </div>
+                          
+                          {windowsLicense === 'licensed' && (
+                            <div className="mt-3 p-3 bg-blue-900/10 border border-blue-800/30 rounded-lg flex items-start gap-2.5">
+                              <svg className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <p className="text-xs text-blue-200/80 leading-relaxed">
+                                <strong className="text-blue-300 font-semibold">Note:</strong> <span className="text-white">Windows activation charges and installation fees are additional</span> and will be included in your final quotation.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -394,51 +472,12 @@ const EnterpriseServerPage = () => {
                 </div>
 
                 {/* Bandwidth Selection */}
-                <div className="relative z-[50]">
-                  <label className="block text-gray-400 font-medium text-sm mb-2">Bandwidth</label>
-                  
-                  {/* Custom Dropdown Trigger */}
-                  <div 
-                    className="w-full bg-[#1e293b] border border-gray-700 hover:border-secondary text-white rounded-lg px-4 py-3 cursor-pointer flex justify-between items-center transition-colors text-sm"
-                    onClick={() => setIsBandwidthDropdownOpen(!isBandwidthDropdownOpen)}
-                  >
-                    <span className="font-medium">{bandwidth.label} <span className={bandwidth.price === 0 ? 'text-emerald-400' : 'text-blue-400'}>{bandwidth.price > 0 ? `(+₹${bandwidth.price}/mo)` : '(Free)'}</span></span>
-                    <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isBandwidthDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-
-                  {/* Custom Dropdown Menu */}
-                  <AnimatePresence>
-                    {isBandwidthDropdownOpen && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute z-50 w-full mt-2 bg-[#0f172a] border border-gray-700 rounded-lg shadow-2xl max-h-80 overflow-y-auto overflow-x-hidden custom-scrollbar p-2"
-                      >
-                        {ENTERPRISE_PRICING.Bandwidth.map(opt => (
-                          <div 
-                            key={opt.label}
-                            onClick={() => { setBandwidth(opt); setIsBandwidthDropdownOpen(false); }}
-                            className={`px-3 py-2.5 rounded-md cursor-pointer flex justify-between items-center transition-colors text-sm mb-1 last:mb-0 ${bandwidth.label === opt.label ? 'bg-secondary/20 text-secondary' : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`}
-                          >
-                            <span className="font-medium">{opt.label}</span>
-                            {opt.price === 0 ? (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-emerald-400 bg-emerald-400/10">FREE</span>
-                            ) : (
-                              <span className="text-xs text-blue-400 font-semibold">+₹{opt.price}/mo</span>
-                            )}
-                          </div>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                <div className="pt-6 border-t border-gray-800">
+                  {renderControlGroup({ label: "Bandwidth", value: bandwidth, unit: "TB", type: "Bandwidth", isBandwidth: true })}
                 </div>
 
                 {/* Backup Checkbox */}
-                <div className="pt-5 border-t border-gray-800 flex items-center justify-between">
+                <div className="pt-2 border-t border-gray-800 flex items-center justify-between">
                   <div>
                     <h3 className="text-white font-medium text-sm">Daily Automated Backup</h3>
                     <p className="text-xs text-gray-500 mt-1">Secure your data with daily snapshot backups.</p>

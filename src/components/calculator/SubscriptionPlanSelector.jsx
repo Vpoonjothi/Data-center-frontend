@@ -9,7 +9,7 @@ const DURATION_OPTIONS = [
   { id: 'custom', label: 'Custom Contract', desc: 'Custom enterprise agreement', type: 'Custom' }
 ];
 
-const SubscriptionPlanSelector = ({ onChange }) => {
+const SubscriptionPlanSelector = ({ onChange, className = "mb-10" }) => {
   const [selectedId, setSelectedId] = useState('1m');
   const [customValue, setCustomValue] = useState(18);
   const [customUnit, setCustomUnit] = useState('Months');
@@ -46,7 +46,7 @@ const SubscriptionPlanSelector = ({ onChange }) => {
   const selectedOption = DURATION_OPTIONS.find(o => o.id === selectedId) || DURATION_OPTIONS[0];
 
   return (
-    <div className="mb-10 animate-fadeIn">
+    <div className={`${className} animate-fadeIn`}>
       <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Subscription Plan</h3>
       
       <div className="relative mb-4 z-20">

@@ -339,7 +339,7 @@ const AdminOffersPage = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20 items-start">
             {filteredOffers.map(offer => (
               <OfferCard 
                 key={offer.id} 
@@ -429,6 +429,7 @@ const OfferCard = ({ offer, onEdit, onDelete, onDuplicate, onPreview }) => {
       </div>
 
       {/* Middle: Requirements */}
+      {(!offer.product_category || offer.product_category === 'Enterprise Servers') && (
       <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mb-6 flex-grow">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-3">Minimum Requirements</span>
         <div className="flex items-center gap-6">
@@ -453,6 +454,7 @@ const OfferCard = ({ offer, onEdit, onDelete, onDuplicate, onPreview }) => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Bottom: Validity & Actions */}
       <div className="flex items-end justify-between border-t border-white/5 pt-4 mt-auto">
@@ -593,6 +595,7 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
           </div>
 
           {/* Requirements */}
+          {(!offer.product_category || offer.product_category === 'Enterprise Servers') && (
           <div>
             <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
               <Cpu className="w-4 h-4 text-emerald-400" /> Minimum Requirements
@@ -616,6 +619,7 @@ const EditOfferModal = ({ offer, onChange, onClose, onSave, isSubmitting }) => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Status & Validity */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -745,6 +749,7 @@ const PreviewOfferModal = ({ offer, onClose }) => {
             {offer.description || `Special discount on all ${offer.product_category}. Upgrade your infrastructure today.`}
           </p>
 
+          {(!offer.product_category || offer.product_category === 'Enterprise Servers') && (
           <div className="flex flex-col items-center justify-center gap-2 mb-8 bg-white/5 py-4 rounded-2xl border border-white/5">
             <span className="text-xs uppercase tracking-widest text-emerald-400 font-bold">Requirements</span>
             <div className="flex items-center gap-4 text-white font-medium">
@@ -753,6 +758,7 @@ const PreviewOfferModal = ({ offer, onClose }) => {
               <span>{offer.min_ram} GB RAM</span>
             </div>
           </div>
+          )}
 
           <button type="button" onClick={onClose} className="w-full max-w-sm mx-auto py-4 bg-white text-black font-bold text-lg rounded-xl hover:bg-emerald-400 hover:text-white transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)]">
             Apply Offer Now

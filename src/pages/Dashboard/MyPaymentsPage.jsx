@@ -91,7 +91,7 @@ const MyPaymentsPage = () => {
                       <td className="py-4 px-6 text-right">
                         {payment.status === 'Verified' && payment.payment_screenshot && payment.payment_screenshot.endsWith('.pdf') && (
                           <a 
-                            href={`http://${window.location.hostname}:5000${payment.payment_screenshot}`} 
+                            href={`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${payment.payment_screenshot}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs font-semibold transition-colors border border-blue-500/20"

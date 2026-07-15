@@ -37,6 +37,20 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor to catch HTML responses (e.g. Nginx 404 pages) instead of expected JSON
+api.interceptors.response.use(
+  (response) => {
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('text/html') && typeof response.data === 'string') {
+      return Promise.reject(new Error('Received HTML response instead of JSON. The API endpoint might be missing or misconfigured on the server.'));
+    }
+    return response;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Submit public enquiry
 export const submitEnquiry = async (enquiryData) => {
   const response = await api.post('/enquiries', enquiryData);

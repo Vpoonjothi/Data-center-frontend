@@ -28,7 +28,7 @@ const DocumentCenterTab = () => {
                 category: 'KYC Document',
                 date: k.created_at,
                 status: k.overall_status,
-                url: k.aadhaar_front_path.startsWith('http') ? k.aadhaar_front_path : `http://${window.location.hostname}:5000${k.aadhaar_front_path}`
+                url: k.aadhaar_front_path.startsWith('http') ? k.aadhaar_front_path : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${k.aadhaar_front_path}`
               });
             }
             if (k.aadhaar_back_path) {
@@ -38,7 +38,7 @@ const DocumentCenterTab = () => {
                 category: 'KYC Document',
                 date: k.created_at,
                 status: k.overall_status,
-                url: k.aadhaar_back_path.startsWith('http') ? k.aadhaar_back_path : `http://${window.location.hostname}:5000${k.aadhaar_back_path}`
+                url: k.aadhaar_back_path.startsWith('http') ? k.aadhaar_back_path : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${k.aadhaar_back_path}`
               });
             }
             if (k.gst_cert_path) {
@@ -48,7 +48,7 @@ const DocumentCenterTab = () => {
                 category: 'KYC Document',
                 date: k.created_at,
                 status: k.overall_status,
-                url: k.gst_cert_path.startsWith('http') ? k.gst_cert_path : `http://${window.location.hostname}:5000${k.gst_cert_path}`
+                url: k.gst_cert_path.startsWith('http') ? k.gst_cert_path : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${k.gst_cert_path}`
               });
             }
             if (k.pan_card_path) {
@@ -58,7 +58,7 @@ const DocumentCenterTab = () => {
                 category: 'KYC Document',
                 date: k.created_at,
                 status: k.overall_status,
-                url: k.pan_card_path.startsWith('http') ? k.pan_card_path : `http://${window.location.hostname}:5000${k.pan_card_path}`
+                url: k.pan_card_path.startsWith('http') ? k.pan_card_path : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${k.pan_card_path}`
               });
             }
             if (k.company_reg_path) {
@@ -68,7 +68,7 @@ const DocumentCenterTab = () => {
                 category: 'KYC Document',
                 date: k.created_at,
                 status: k.overall_status,
-                url: k.company_reg_path.startsWith('http') ? k.company_reg_path : `http://${window.location.hostname}:5000${k.company_reg_path}`
+                url: k.company_reg_path.startsWith('http') ? k.company_reg_path : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${k.company_reg_path}`
               });
             }
             if (k.address_proof_path) {
@@ -78,7 +78,7 @@ const DocumentCenterTab = () => {
                 category: 'KYC Document',
                 date: k.created_at,
                 status: k.overall_status,
-                url: k.address_proof_path.startsWith('http') ? k.address_proof_path : `http://${window.location.hostname}:5000${k.address_proof_path}`
+                url: k.address_proof_path.startsWith('http') ? k.address_proof_path : `${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : `http://${window.location.hostname}:5000`}${k.address_proof_path}`
               });
             }
           });

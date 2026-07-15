@@ -3,7 +3,7 @@ import React, { useRef, useState, useEffect, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { ContentContext } from '../../context/ContentContext';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { submitEnquiry, getAiServers } from '../../services/api';
+import { submitEnquiry, getAiServers, getOffers } from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 import SubscriptionPlanSelector from '../../components/calculator/SubscriptionPlanSelector';
 import { calculateSubscriptionPricing } from '../../utils/pricingCalculator';
@@ -36,14 +36,26 @@ const AIServerPage = () => {
   const [servers, setServers] = useState([]);
   const [activeServer, setActiveServer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [offers, setOffers] = useState([]);
 
   useEffect(() => {
     const fetchServers = async () => {
       try {
         const data = await getAiServers();
-        setServers(data);
+        if (Array.isArray(data)) {
+          setServers(data);
+        } else {
+          console.error('Expected array for servers, got:', data);
+          setServers([]);
+        }
         if (data.length > 0) {
           setActiveServer(data[0]);
+        }
+        
+        const offersData = await getOffers();
+        if (Array.isArray(offersData)) {
+          const aiOffers = offersData.filter(o => o.product_category === 'AI Servers' && o.status === 'Active');
+          setOffers(aiOffers.sort((a, b) => b.discount - a.discount));
         }
       } catch (err) {
         console.error('Failed to fetch AI servers', err);
@@ -67,8 +79,14 @@ const AIServerPage = () => {
     durationMultiplier: 1
   });
 
+  const activeOffer = offers.length > 0 ? offers[0] : null;
+  const discountPercent = activeOffer ? activeOffer.discount : 0;
+  
+  const baseMonthlyPrice = activeServer?.monthly_price || 0;
+  const discountedMonthlyPrice = baseMonthlyPrice - (baseMonthlyPrice * (discountPercent / 100));
+
   const { contractValue: durationSubtotal, gstAmount, totalPayable: grandTotal } = calculateSubscriptionPricing(
-    activeServer?.monthly_price || 0,
+    discountedMonthlyPrice,
     billingDuration.duration_value,
     billingDuration.duration_unit
   );
@@ -100,6 +118,7 @@ const AIServerPage = () => {
         storage: activeServer.storage,
         gpu: activeServer.gpu,
         quantity: formData.quantity,
+        discount: activeOffer ? activeOffer.name : 'None',
         duration_type: billingDuration.duration_type,
         duration_value: billingDuration.duration_value,
         duration_unit: billingDuration.duration_unit,
@@ -192,11 +211,22 @@ const AIServerPage = () => {
       {/* 2. AI Servers Pricing Grid */}
       <section className="py-24 bg-[#0a1128] border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Choose Your AI Powerhouse</h2>
             <p className="text-gray-400 max-w-2xl mx-auto mb-8">Compare specifications and find the perfect dedicated server for your machine learning workloads.</p>
+            {activeOffer && (
+              <div className="max-w-2xl mx-auto bg-emerald-900/20 border border-secondary/50 rounded-xl p-4 flex items-center justify-center gap-3 mb-6">
+                <span className="text-3xl">🎉</span>
+                <div className="text-left">
+                  <div className="font-bold text-secondary">{activeOffer.name} Applied</div>
+                  <div className="text-sm text-emerald-200/70">You are saving {activeOffer.discount}% on all AI Servers!</div>
+                </div>
+              </div>
+            )}
             <div className="flex justify-center">
-              <SubscriptionPlanSelector onChange={setBillingDuration} />
+              <div className="w-full max-w-sm">
+                <SubscriptionPlanSelector onChange={setBillingDuration} className="mb-0" />
+              </div>
             </div>
           </div>
           
@@ -208,7 +238,8 @@ const AIServerPage = () => {
                 : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
           }`}>
             {servers.map((server, index) => {
-              const contractValue = server.monthly_price * billingDuration.durationMultiplier;
+              const discountedServerPrice = server.monthly_price - (server.monthly_price * (discountPercent / 100));
+              const contractValue = discountedServerPrice * billingDuration.durationMultiplier;
               const gst = contractValue * 0.18;
               const total = contractValue + gst;
               
@@ -229,7 +260,7 @@ const AIServerPage = () => {
                       <span className="text-gray-500 text-xs"> total</span>
                     </div>
                     <div className="text-xs text-gray-400">
-                      (₹{server.monthly_price.toLocaleString()}/mo x {billingDuration.durationMultiplier} mo + 18% GST)
+                      (₹{discountedServerPrice.toLocaleString()}/mo x {billingDuration.durationMultiplier} mo + 18% GST)
                     </div>
                   </div>
                 </div>

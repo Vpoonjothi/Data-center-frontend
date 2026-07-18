@@ -140,9 +140,19 @@ const PaymentPage = () => {
       };
 
       const rzp1 = new window.Razorpay(options);
-      rzp1.on('payment.failed', function (response) {
+      rzp1.on('payment.failed', async function (response) {
         setError(response.error.description || 'Payment Failed');
         setProcessing(false);
+        try {
+          await api.post(`/payment/fail`, {
+            quoteId,
+            reason: response.error.description || 'Payment Failed',
+            gateway_response: response.error,
+            transaction_reference: response.error.metadata?.payment_id || undefined
+          });
+        } catch (err) {
+          console.error('Failed to log payment failure:', err);
+        }
       });
       
       rzp1.open();
